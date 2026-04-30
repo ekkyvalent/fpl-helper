@@ -85,6 +85,52 @@ export function buildAppState(
   return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap }
 }
 
+// ── Team Colors (2024/25 Premier League) ──────────────────────
+export const TEAM_COLORS: Record<string, { primary: string; secondary: string }> = {
+  ARS: { primary: '#EF0107', secondary: '#FFFFFF' },
+  AVL: { primary: '#670E36', secondary: '#95BFE5' },
+  BOU: { primary: '#DA291C', secondary: '#000000' },
+  BRE: { primary: '#E30613', secondary: '#FFFFFF' },
+  BHA: { primary: '#0057B8', secondary: '#FFFFFF' },
+  CHE: { primary: '#034694', secondary: '#FFFFFF' },
+  CRY: { primary: '#1B458F', secondary: '#C4122E' },
+  EVE: { primary: '#003399', secondary: '#FFFFFF' },
+  FUL: { primary: '#FFFFFF',  secondary: '#CC0000' },
+  IPS: { primary: '#3A64A3', secondary: '#FFFFFF' },
+  LEI: { primary: '#003090', secondary: '#FDBE11' },
+  LIV: { primary: '#C8102E', secondary: '#00B2A9' },
+  MCI: { primary: '#6CABDD', secondary: '#FFFFFF' },
+  MUN: { primary: '#DA291C', secondary: '#FBE122' },
+  NEW: { primary: '#241F20', secondary: '#FFFFFF' },
+  NFO: { primary: '#DD0000', secondary: '#FFFFFF' },
+  SOU: { primary: '#D71920', secondary: '#FFFFFF' },
+  TOT: { primary: '#132257', secondary: '#FFFFFF' },
+  WHU: { primary: '#7A263A', secondary: '#1BB1E7' },
+  WOL: { primary: '#FDB913', secondary: '#231F20' },
+}
+
+// ── Formation helpers ──────────────────────────────────────────
+export function detectFormation(squad: SquadPlayer[]): string {
+  const s = squad.slice(0, 11)
+  const d = s.filter((p) => p.element_type === 2).length
+  const m = s.filter((p) => p.element_type === 3).length
+  const f = s.filter((p) => p.element_type === 4).length
+  return `${d}-${m}-${f}`
+}
+
+/** Returns {x, y} as percentages on the pitch (0–100).
+ *  y=10 = top (attack end), y=88 = bottom (GK end). */
+export function pitchPosition(
+  elementType: number,
+  index: number,
+  groupSize: number
+): { x: number; y: number } {
+  const yMap: Record<number, number> = { 1: 86, 2: 66, 3: 43, 4: 18 }
+  const y = yMap[elementType] ?? 50
+  const x = ((index + 1) / (groupSize + 1)) * 100
+  return { x, y }
+}
+
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
   if (diff === 3) return 'bg-yellow-100 text-yellow-800'
