@@ -190,7 +190,7 @@ export default function SquadTab({ state }: Props) {
       {/* Pitch */}
       <div
         className="relative w-full rounded-2xl overflow-hidden shadow-lg"
-        style={{ paddingBottom: '143%' }}
+        style={{ height: 'calc(100svh - 380px)', minHeight: '320px' }}
       >
         <Pitch />
 
