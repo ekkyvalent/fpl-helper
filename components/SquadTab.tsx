@@ -58,28 +58,28 @@ function PitchPlayer({ player, teamMap }: { player: SquadPlayer; teamMap: AppSta
   return (
     <div className="flex flex-col items-center gap-1">
       {/* Shirt + badges */}
-      <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+      <div className="relative w-14 h-14">
         <Shirt primary={colors.primary} secondary={colors.secondary} />
 
         {/* Captain / Vice badge */}
         {(isCaptain || isVice) && (
-          <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white shadow ${isCaptain ? 'bg-green-500' : 'bg-gray-500'}`}>
+          <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow ${isCaptain ? 'bg-green-500' : 'bg-gray-500'}`}>
             {isCaptain ? 'C' : 'V'}
           </span>
         )}
 
         {/* Injury dot */}
         {player.status !== 'a' && (
-          <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white ${statusColor(player.status)}`} />
+          <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${statusColor(player.status)}`} />
         )}
       </div>
 
       {/* Name plate */}
-      <div className="bg-black/65 backdrop-blur-sm rounded px-1.5 py-1 text-center max-w-[76px] flex flex-col items-center gap-0.5">
-        <p className="text-white text-[10px] font-bold leading-none truncate w-full text-center">{player.web_name}</p>
+      <div className="bg-black/65 backdrop-blur-sm rounded-md px-2 py-1 text-center max-w-[84px] flex flex-col items-center gap-0.5">
+        <p className="text-white text-[11px] font-bold leading-none truncate w-full text-center">{player.web_name}</p>
         {nextFix
           ? <FixturePill fix={nextFix} teamMap={teamMap} />
-          : <p className="text-gray-400 text-[8px] leading-none">No fix</p>
+          : <p className="text-gray-400 text-[9px] leading-none">No fix</p>
         }
       </div>
     </div>
@@ -190,7 +190,7 @@ export default function SquadTab({ state }: Props) {
       {/* Pitch */}
       <div
         className="relative w-full rounded-2xl overflow-hidden shadow-lg"
-        style={{ height: 'calc(100svh - 380px)', minHeight: '320px' }}
+        style={{ paddingBottom: '143%' }}
       >
         <Pitch />
 

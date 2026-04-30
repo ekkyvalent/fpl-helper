@@ -131,6 +131,38 @@ export function pitchPosition(
   return { x, y }
 }
 
+// ── Squad Rating (1–100) ──────────────────────────────────────
+export function calculateSquadRating(state: AppState): {
+  score: number
+  formScore: number
+  fixtureScore: number
+  availScore: number
+  avgForm: number
+  avgFdr: number
+  fitCount: number
+} {
+  const starting = state.squad.slice(0, 11)
+
+  // Form (0–40): avg form of starters normalised against a ceiling of 8
+  const avgForm = starting.reduce((s, p) => s + parseFloat(p.form || '0'), 0) / 11
+  const formScore = Math.min((avgForm / 8) * 40, 40)
+
+  // Fixtures (0–35): avg FDR of next fixture per starter
+  const avgFdr = starting.reduce((s, p) => s + (p.fixtures[0]?.difficulty ?? 4), 0) / 11
+  const fixtureScore = Math.max(0, ((5 - avgFdr) / 4) * 35)
+
+  // Availability (0–25): deduct for doubts/injuries
+  const fitCount = starting.filter((p) => p.status === 'a').length
+  const availScore = starting.reduce((s, p) => {
+    if (p.status === 'a') return s + 25 / 11
+    if (p.status === 'd') return s + (25 / 11) * 0.4
+    return s
+  }, 0)
+
+  const score = Math.round(Math.min(100, Math.max(1, formScore + fixtureScore + availScore)))
+  return { score, formScore, fixtureScore, availScore, avgForm, avgFdr, fitCount }
+}
+
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
   if (diff === 3) return 'bg-yellow-100 text-yellow-800'
