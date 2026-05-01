@@ -11,103 +11,116 @@ function ratingLabel(score: number) {
   return              { text: 'Struggling',  color: '#ef4444' }
 }
 
-// Circular arc gauge
-function Gauge({ score }: { score: number }) {
-  const r   = 38
-  const cx  = 52
-  const cy  = 52
-  const circ = 2 * Math.PI * r
-  // We use a 240° arc (from 150° to 390°, i.e. bottom-left → bottom-right)
-  const arcLen = (240 / 360) * circ
-  const filled = (score / 100) * arcLen
-  const gap    = arcLen - filled
-
-  const { color } = ratingLabel(score)
-
-  // Helper: point on circle at angle (degrees, 0=right)
-  const pt = (deg: number) => ({
-    x: cx + r * Math.cos((deg * Math.PI) / 180),
-    y: cy + r * Math.sin((deg * Math.PI) / 180),
-  })
-
-  const start = pt(150)
-  const end   = pt(30)   // 150 + 240
-
-  const trackD = `M ${start.x} ${start.y} A ${r} ${r} 0 1 1 ${end.x} ${end.y}`
-
-  // Progress arc: uses stroke-dasharray trick
+// Mini horizontal bar for a score
+function ScoreBar({ value, color }: { value: number; color: string }) {
   return (
-    <svg viewBox="0 0 104 80" className="w-32 h-24">
-      {/* Track */}
-      <path d={trackD} fill="none" stroke="#e5e7eb" strokeWidth="7" strokeLinecap="round" />
-      {/* Progress */}
-      <path
-        d={trackD}
-        fill="none"
-        stroke={color}
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeDasharray={`${filled} ${gap + 0.01}`}
-        style={{ transition: 'stroke-dasharray 0.6s ease' }}
+    <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden mt-1.5">
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${value}%`, background: color }}
       />
-      {/* Score text */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="22" fontWeight="800" fill="#111827">
-        {score}
-      </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="8" fontWeight="700" fill="#9ca3af" letterSpacing="1">
-        / 100
-      </text>
-    </svg>
-  )
-}
-
-function StatRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-none">
-      <span className="text-xs text-gray-500">{label}</span>
-      <div className="text-right">
-        <span className="text-xs font-bold text-gray-900">{value}</span>
-        {sub && <span className="text-[10px] text-gray-400 ml-1">{sub}</span>}
-      </div>
     </div>
   )
 }
 
+const SCORE_META = {
+  squadPower: {
+    label: 'Squad Power',
+    icon:  '🏟️',
+    desc:  'Avg quality of all 15 — reflects bench depth',
+    color: '#6366f1',   // indigo
+    bg:    'bg-indigo-50',
+    border:'border-indigo-100',
+    text:  'text-indigo-700',
+    bar:   '#6366f1',
+  },
+  xiPower: {
+    label: 'XI Power',
+    icon:  '⚡',
+    desc:  'Intrinsic quality of your starting XI, ignoring fixtures',
+    color: '#0ea5e9',   // sky
+    bg:    'bg-sky-50',
+    border:'border-sky-100',
+    text:  'text-sky-700',
+    bar:   '#0ea5e9',
+  },
+  xiGWScore: {
+    label: 'GW Score',
+    icon:  '📅',
+    desc:  'XI Power adjusted for this GW\'s fixtures — how well set up you are right now',
+    color: '#16a34a',   // green
+    bg:    'bg-green-50',
+    border:'border-green-100',
+    text:  'text-green-700',
+    bar:   '#16a34a',
+  },
+}
+
 export default function SquadRatingCard({ state }: Props) {
   const { score, avgForm, avgFdr, fitCount } = calculateSquadRating(state)
-  const { text, color } = ratingLabel(score)
+  const { text: ratingText, color: ratingColor } = ratingLabel(score)
   const { squadPower, xiPower, xiGWScore } = squadPowerStats(state.squad)
+
+  const gwDelta = xiGWScore - xiPower   // negative = tough fixtures, positive = easy run
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
-      <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-3">Squad Rating</p>
 
-      <div className="flex items-center gap-4">
-        <Gauge score={score} />
-
-        <div className="flex-1">
-          <p className="text-base font-extrabold mb-3" style={{ color }}>{text}</p>
-          <StatRow label="Avg Form"     value={avgForm.toFixed(1)} sub="/ 10" />
-          <StatRow label="Next Fixture" value={`FDR ${avgFdr.toFixed(1)}`} />
-          <StatRow label="Availability" value={`${fitCount} / 11`} sub="fit" />
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Squad Rating</p>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold" style={{ color: ratingColor }}>{ratingText}</span>
+          <span className="text-[11px] font-extrabold text-gray-300">·</span>
+          <span className="text-[11px] font-bold text-gray-400">{score}/100</span>
+          <span className="text-[11px] text-gray-300">·</span>
+          <span className="text-[11px] text-gray-400">Form {avgForm.toFixed(1)}</span>
+          <span className="text-[11px] text-gray-300">·</span>
+          <span className="text-[11px] text-gray-400">FDR {avgFdr.toFixed(1)}</span>
+          <span className="text-[11px] text-gray-300">·</span>
+          <span className="text-[11px] text-gray-400">{fitCount}/11 fit</span>
         </div>
       </div>
 
-      {/* Power stats row */}
-      <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-3 gap-2">
-        {[
-          { label: 'Squad Power', value: squadPower },
-          { label: 'XI Power',    value: xiPower    },
-          { label: 'GW Score',    value: xiGWScore  },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex flex-col items-center gap-1">
-            <span className={`text-base font-extrabold px-2 py-0.5 rounded-md ${powerColor(value)}`}>
-              {value}
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label}</span>
-          </div>
-        ))}
+      {/* Three score cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {(
+          [
+            { key: 'squadPower', value: squadPower },
+            { key: 'xiPower',    value: xiPower    },
+            { key: 'xiGWScore',  value: xiGWScore  },
+          ] as const
+        ).map(({ key, value }) => {
+          const meta = SCORE_META[key]
+          return (
+            <div
+              key={key}
+              className={`rounded-xl border px-3 pt-3 pb-2.5 flex flex-col gap-0.5 ${meta.bg} ${meta.border}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-base">{meta.icon}</span>
+                <span
+                  className={`text-[22px] font-extrabold leading-none ${meta.text}`}
+                >
+                  {value}
+                </span>
+              </div>
+              <p className={`text-[11px] font-bold mt-1 ${meta.text}`}>{meta.label}</p>
+              <p className="text-[9px] text-gray-500 leading-snug">{meta.desc}</p>
+              <ScoreBar value={value} color={meta.bar} />
+            </div>
+          )
+        })}
       </div>
+
+      {/* GW delta hint */}
+      {Math.abs(gwDelta) >= 3 && (
+        <p className="text-[10px] text-gray-400 mt-2.5 text-center">
+          {gwDelta < 0
+            ? `⚠️ GW Score is ${Math.abs(gwDelta)} pts below XI Power — tough fixtures ahead`
+            : `✅ GW Score is ${gwDelta} pts above XI Power — favourable fixtures this week`}
+        </p>
+      )}
     </div>
   )
 }
