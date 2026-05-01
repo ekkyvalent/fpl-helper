@@ -58,6 +58,10 @@ function FormBadge({ form }: { form: string }) {
 
 export default function FixturesTab({ state }: Props) {
   const starting = state.squad.slice(0, 11)
+  const bench    = [
+    ...state.squad.slice(11).filter((p) => p.element_type === 1),
+    ...state.squad.slice(11).filter((p) => p.element_type !== 1),
+  ]
   const { nextGWs, teamMap } = state
   const dynamic  = hasDynamic(state)
 
@@ -101,12 +105,10 @@ export default function FixturesTab({ state }: Props) {
           </tr>
         </thead>
         <tbody>
-          {starting.map((p, i) => (
+          {starting.map((p) => (
             <tr
               key={p.id}
-              className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
-                i === starting.length - 1 ? 'border-none' : ''
-              }`}
+              className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
             >
               {/* Player name */}
               <td className="px-4 py-3">
@@ -160,6 +162,67 @@ export default function FixturesTab({ state }: Props) {
               {/* GW fixture chips */}
               {nextGWs.map((gw) => (
                 <td key={gw} className="px-2 py-3 text-center">
+                  <FixChip
+                    fix={p.fixtures.find((f) => f.gw === gw)}
+                    teamMap={teamMap}
+                    useDynamic={dynamic}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+
+          {/* Bench divider */}
+          <tr>
+            <td colSpan={5 + nextGWs.length} className="px-4 py-2 bg-gray-50 border-y border-gray-100">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Bench</span>
+            </td>
+          </tr>
+
+          {bench.map((p) => (
+            <tr
+              key={p.id}
+              className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors opacity-60"
+            >
+              <td className="px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <p className="font-bold text-gray-700 text-[13px]">{p.web_name}</p>
+                    <p className="text-[11px] text-gray-400">{p.teamShort} · {posLabel(p.element_type)}</p>
+                  </div>
+                  {p.status !== 'a' && (
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{
+                        background: p.status === 'd' ? '#fef9c3' : '#fee2e2',
+                        color:      p.status === 'd' ? '#854d0e' : '#991b1b',
+                      }}
+                    >
+                      {p.chance_of_playing_next_round != null
+                        ? `${p.chance_of_playing_next_round}%`
+                        : p.status === 'd' ? '?' : 'OUT'}
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <span className="text-[12px] font-semibold text-gray-600">{fmt(p.now_cost)}</span>
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <FormBadge form={p.form} />
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <span className="text-[12px] text-gray-500">
+                  {parseFloat(p.selected_by_percent || '0').toFixed(1)}%
+                </span>
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <span className="text-[12px] font-semibold text-gray-600">
+                  {parseFloat(p.points_per_game || '0').toFixed(1)}
+                </span>
+              </td>
+              {nextGWs.map((gw) => (
+                <td key={gw} className="px-2 py-2.5 text-center">
                   <FixChip
                     fix={p.fixtures.find((f) => f.gw === gw)}
                     teamMap={teamMap}

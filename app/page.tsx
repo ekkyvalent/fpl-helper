@@ -230,9 +230,17 @@ export default function Home() {
           <span className="text-[17px] font-extrabold text-green-600 tracking-tight">FPL Helper</span>
         </button>
         {appState && screen === 'app' && (
-          <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
-            GW {appState.currentGW}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+              GW {appState.currentGW}
+            </span>
+            <button
+              onClick={() => { setScreen('input'); setAppState(null) }}
+              className="text-xs font-semibold text-gray-400 hover:text-gray-700 border border-gray-200 hover:border-gray-400 px-3 py-1 rounded-full transition-colors cursor-pointer bg-transparent"
+            >
+              Change Team
+            </button>
+          </div>
         )}
       </header>
 

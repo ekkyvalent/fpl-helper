@@ -170,13 +170,19 @@ function positionPlayers(players: SquadPlayer[]) {
 export default function SquadTab({ state }: Props) {
   const [mode, setMode] = useState<'current' | 'recommended'>('current')
 
+  // GK always first in bench
+  const sortBench = (bench: typeof state.squad) => [
+    ...bench.filter((p) => p.element_type === 1),
+    ...bench.filter((p) => p.element_type !== 1),
+  ]
+
   // Current squad (as picked)
   const currentStarting = state.squad.slice(0, 11)
-  const currentBench    = state.squad.slice(11)
+  const currentBench    = sortBench(state.squad.slice(11))
 
   // Recommended XI
   const recStarting = recommendStartingXI(state.squad)
-  const recBench    = state.squad.filter((p) => !recStarting.find((r) => r.id === p.id))
+  const recBench    = sortBench(state.squad.filter((p) => !recStarting.find((r) => r.id === p.id)))
 
   // Recommended captain & vice = top 2 scorers in rec XI
   const recSorted    = [...recStarting].sort((a, b) => playerScore(b) - playerScore(a))
