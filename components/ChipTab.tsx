@@ -8,6 +8,7 @@ import {
   recommendStartingXI,
   playerPowerRating,
   playerGWScore,
+  squadPowerStats,
   powerColor,
   posLabel,
   fmt,
@@ -135,6 +136,43 @@ export default function ChipTab({ state, onSquadChange }: Props) {
           />
         </div>
       </div>
+
+      {/* ── Chip squad strength ── */}
+      {(() => {
+        const { squadPower: sp, xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
+        const delta = gw - xp
+        const stats = [
+          { label: 'Squad Power', value: sp, desc: 'All 15 players' },
+          { label: 'XI Power',    value: xp, desc: 'Starting XI quality' },
+          { label: 'GW Score',    value: gw, desc: 'This GW outlook' },
+        ]
+        return (
+          <div className="bg-white border border-gray-100 rounded-xl p-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-3">
+              Recommended Squad Strength
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {stats.map(({ label, value, desc }) => (
+                <div key={label} className="flex flex-col items-center gap-1 bg-gray-50 rounded-lg py-2.5 px-2">
+                  <span className={`text-[20px] font-extrabold ${powerColor(value).replace('bg-', 'text-').split(' ')[0]}`}
+                    style={{ color: value >= 70 ? '#16a34a' : value >= 55 ? '#84cc16' : value >= 40 ? '#f59e0b' : '#ef4444' }}>
+                    {value}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-600">{label}</span>
+                  <span className="text-[9px] text-gray-400 text-center leading-tight">{desc}</span>
+                </div>
+              ))}
+            </div>
+            {Math.abs(delta) >= 3 && (
+              <p className="text-[10px] text-gray-400 mt-2 text-center">
+                {delta < 0
+                  ? `⚠️ GW Score is ${Math.abs(delta)} pts below XI Power — tough fixtures`
+                  : `✅ GW Score is ${delta} pts above XI Power — favourable fixtures`}
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Recommended squad ── */}
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">

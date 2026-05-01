@@ -101,21 +101,45 @@ function LoadingScreen({ msg }: { msg: string }) {
   )
 }
 
+// ── Mobile tab labels ─────────────────────────────────────────
+const TAB_LABELS: Record<string, string> = {
+  Squad: '⚽', Fixtures: '📋', Transfers: '🔄', Captain: '©', Chip: '🃏'
+}
+const MOBILE_TABS = ['Squad', ...RIGHT_TABS] as const
+type MobileTab = (typeof MOBILE_TABS)[number]
+
 // ── App Screen ────────────────────────────────────────────────
-function AppScreen({ state }: { state: AppState }) {
-  const [activeTab, setActiveTab]   = useState<RightTab>('Fixtures')
+function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
+  const [activeTab, setActiveTab]     = useState<RightTab>('Fixtures')
+  const [mobileTab, setMobileTab]     = useState<MobileTab>('Fixtures')
   const [chipPreview, setChipPreview] = useState<{ squad: SquadPlayer[]; label: string } | null>(null)
 
   function handleTabChange(tab: RightTab) {
     setActiveTab(tab)
-    // Clear chip preview when leaving the Chip tab
     if (tab !== 'Chip') setChipPreview(null)
   }
 
-  return (
-    <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100svh - 56px)' }}>
+  function handleMobileTab(tab: MobileTab) {
+    setMobileTab(tab)
+    if (tab !== 'Chip') setChipPreview(null)
+    if (tab !== 'Squad' && RIGHT_TABS.includes(tab as RightTab)) {
+      setActiveTab(tab as RightTab)
+    }
+  }
 
-      {/* ── LEFT: Pitch ── */}
+  const chipProps = {
+    state,
+    onSquadChange: (squad: SquadPlayer[], label: string) => setChipPreview({ squad, label }),
+  }
+
+  return (
+    <>
+    {/* ════════════════════════════════════════
+        DESKTOP layout (md and above)
+    ════════════════════════════════════════ */}
+    <div className="hidden md:flex flex-1 overflow-hidden" style={{ height: 'calc(100svh - 56px)' }}>
+
+      {/* LEFT: Pitch */}
       <div className="w-[400px] shrink-0 border-r border-gray-100 bg-[#f0f5f0] overflow-y-auto p-4 flex flex-col gap-3">
         <SquadTab
           state={state}
@@ -124,7 +148,7 @@ function AppScreen({ state }: { state: AppState }) {
         />
       </div>
 
-      {/* ── RIGHT: Info + Tabs ── */}
+      {/* RIGHT: Info + Tabs */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 min-w-0">
         <SummaryBar state={state} />
         <SquadRatingCard state={state} />
@@ -149,16 +173,56 @@ function AppScreen({ state }: { state: AppState }) {
           {activeTab === 'Fixtures'  && <FixturesTab  state={state} />}
           {activeTab === 'Transfers' && <TransfersTab state={state} />}
           {activeTab === 'Captain'   && <CaptainTab   state={state} />}
-          {activeTab === 'Chip'      && (
-            <ChipTab
-              state={state}
-              onSquadChange={(squad, label) => setChipPreview({ squad, label })}
-            />
-          )}
+          {activeTab === 'Chip'      && <ChipTab {...chipProps} />}
         </div>
       </div>
-
     </div>
+
+    {/* ════════════════════════════════════════
+        MOBILE layout (below md)
+    ════════════════════════════════════════ */}
+    <div className="flex md:hidden flex-col flex-1 overflow-hidden" style={{ height: 'calc(100svh - 56px)' }}>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {mobileTab === 'Squad' && (
+          <div className="bg-[#f0f5f0] p-3">
+            <SquadTab
+              state={state}
+              previewSquad={chipPreview?.squad}
+              previewLabel={chipPreview?.label}
+            />
+          </div>
+        )}
+        {mobileTab !== 'Squad' && (
+          <div className="p-3 flex flex-col gap-3">
+            <SummaryBar state={state} />
+            <SquadRatingCard state={state} />
+            {mobileTab === 'Fixtures'  && <FixturesTab  state={state} />}
+            {mobileTab === 'Transfers' && <TransfersTab state={state} />}
+            {mobileTab === 'Captain'   && <CaptainTab   state={state} />}
+            {mobileTab === 'Chip'      && <ChipTab {...chipProps} />}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom tab bar */}
+      <div className="bg-white border-t border-gray-100 flex shrink-0 safe-area-pb">
+        {MOBILE_TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => handleMobileTab(tab)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors cursor-pointer ${
+              mobileTab === tab ? 'text-green-600' : 'text-gray-400'
+            }`}
+          >
+            <span className="text-base leading-none">{TAB_LABELS[tab]}</span>
+            <span>{tab}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+    </>
   )
 }
 
@@ -249,6 +313,9 @@ export default function Home() {
         </button>
         {appState && screen === 'app' && (
           <div className="flex items-center gap-2">
+            <span className="hidden sm:inline bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1 rounded-full">
+              ID {savedId}
+            </span>
             <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
               GW {appState.currentGW}
             </span>
@@ -270,7 +337,7 @@ export default function Home() {
 
       {screen === 'input'   && <InputScreen onLoad={loadTeam} onForget={forgetTeam} savedId={savedId} />}
       {screen === 'loading' && <LoadingScreen msg={loadMsg} />}
-      {screen === 'app'     && appState && <AppScreen state={appState} />}
+      {screen === 'app'     && appState && <AppScreen state={appState} teamId={savedId} />}
     </div>
   )
 }
