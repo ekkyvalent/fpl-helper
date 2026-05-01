@@ -1,124 +1,104 @@
 import type { AppState } from '@/lib/types'
-import { calculateSquadRating, squadPowerStats, powerColor } from '@/lib/fpl'
+import { calculateSquadRating, squadPowerStats } from '@/lib/fpl'
 
 interface Props { state: AppState }
 
-function ratingLabel(score: number) {
-  if (score >= 85) return { text: 'Elite',      color: '#16a34a' }
-  if (score >= 70) return { text: 'Strong',     color: '#22c55e' }
-  if (score >= 55) return { text: 'Decent',     color: '#84cc16' }
-  if (score >= 40) return { text: 'Average',    color: '#f59e0b' }
-  return              { text: 'Struggling',  color: '#ef4444' }
+function scoreColor(v: number) {
+  if (v >= 70) return { text: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
+  if (v >= 55) return { text: '#65a30d', bg: '#f7fee7', border: '#d9f99d' }
+  if (v >= 40) return { text: '#d97706', bg: '#fffbeb', border: '#fde68a' }
+  return              { text: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
 }
 
-// Mini horizontal bar for a score
-function ScoreBar({ value, color }: { value: number; color: string }) {
+function ratingLabel(score: number) {
+  if (score >= 85) return 'Elite'
+  if (score >= 70) return 'Strong'
+  if (score >= 55) return 'Decent'
+  if (score >= 40) return 'Average'
+  return 'Struggling'
+}
+
+function ScoreBlock({
+  value, label, sublabel, accent,
+}: {
+  value: number
+  label: string
+  sublabel: string
+  accent: { text: string; bg: string; border: string }
+}) {
   return (
-    <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden mt-1.5">
-      <div
-        className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${value}%`, background: color }}
-      />
+    <div
+      className="flex-1 rounded-2xl border px-5 py-4 flex flex-col gap-1"
+      style={{ background: accent.bg, borderColor: accent.border }}
+    >
+      <span
+        className="text-5xl font-extrabold leading-none tracking-tight"
+        style={{ color: accent.text }}
+      >
+        {value}
+      </span>
+      <p className="text-sm font-bold text-gray-800 mt-1">{label}</p>
+      <p className="text-xs text-gray-500 leading-snug">{sublabel}</p>
+      {/* progress bar */}
+      <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden mt-2">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${value}%`, background: accent.text }}
+        />
+      </div>
     </div>
   )
 }
 
-const SCORE_META = {
-  squadPower: {
-    label: 'Squad Power',
-    icon:  '🏟️',
-    desc:  'Avg quality of all 15 — reflects bench depth',
-    color: '#6366f1',   // indigo
-    bg:    'bg-indigo-50',
-    border:'border-indigo-100',
-    text:  'text-indigo-700',
-    bar:   '#6366f1',
-  },
-  xiPower: {
-    label: 'XI Power',
-    icon:  '⚡',
-    desc:  'Intrinsic quality of your starting XI, ignoring fixtures',
-    color: '#0ea5e9',   // sky
-    bg:    'bg-sky-50',
-    border:'border-sky-100',
-    text:  'text-sky-700',
-    bar:   '#0ea5e9',
-  },
-  xiGWScore: {
-    label: 'GW Score',
-    icon:  '📅',
-    desc:  'XI Power adjusted for this GW\'s fixtures — how well set up you are right now',
-    color: '#16a34a',   // green
-    bg:    'bg-green-50',
-    border:'border-green-100',
-    text:  'text-green-700',
-    bar:   '#16a34a',
-  },
-}
-
 export default function SquadRatingCard({ state }: Props) {
-  const { score, avgForm, avgFdr, fitCount } = calculateSquadRating(state)
-  const { text: ratingText, color: ratingColor } = ratingLabel(score)
-  const { squadPower, xiPower, xiGWScore } = squadPowerStats(state.squad)
+  const { avgForm, avgFdr, fitCount } = calculateSquadRating(state)
+  const { xiPower, xiGWScore } = squadPowerStats(state.squad)
 
-  const gwDelta = xiGWScore - xiPower   // negative = tough fixtures, positive = easy run
+  const delta     = xiGWScore - xiPower
+  const qColor    = scoreColor(xiPower)
+  const gwColor   = scoreColor(xiGWScore)
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
 
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Squad Rating</p>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold" style={{ color: ratingColor }}>{ratingText}</span>
-          <span className="text-[11px] font-extrabold text-gray-300">·</span>
-          <span className="text-[11px] font-bold text-gray-400">{score}/100</span>
-          <span className="text-[11px] text-gray-300">·</span>
-          <span className="text-[11px] text-gray-400">Form {avgForm.toFixed(1)}</span>
-          <span className="text-[11px] text-gray-300">·</span>
-          <span className="text-[11px] text-gray-400">FDR {avgFdr.toFixed(1)}</span>
-          <span className="text-[11px] text-gray-300">·</span>
-          <span className="text-[11px] text-gray-400">{fitCount}/11 fit</span>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Your Squad</p>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          <span className="text-xs font-semibold text-gray-500">
+            {ratingLabel(xiPower)}
+          </span>
+          <span className="text-gray-300 text-xs">·</span>
+          <span className="text-xs text-gray-400">Form <strong className="text-gray-600">{avgForm.toFixed(1)}</strong></span>
+          <span className="text-gray-300 text-xs">·</span>
+          <span className="text-xs text-gray-400">FDR <strong className="text-gray-600">{avgFdr.toFixed(1)}</strong></span>
+          <span className="text-gray-300 text-xs">·</span>
+          <span className="text-xs text-gray-400"><strong className="text-gray-600">{fitCount}/11</strong> fit</span>
         </div>
       </div>
 
-      {/* Three score cards */}
-      <div className="grid grid-cols-3 gap-3">
-        {(
-          [
-            { key: 'squadPower', value: squadPower },
-            { key: 'xiPower',    value: xiPower    },
-            { key: 'xiGWScore',  value: xiGWScore  },
-          ] as const
-        ).map(({ key, value }) => {
-          const meta = SCORE_META[key]
-          return (
-            <div
-              key={key}
-              className={`rounded-xl border px-3 pt-3 pb-2.5 flex flex-col gap-0.5 ${meta.bg} ${meta.border}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-base">{meta.icon}</span>
-                <span
-                  className={`text-[22px] font-extrabold leading-none ${meta.text}`}
-                >
-                  {value}
-                </span>
-              </div>
-              <p className={`text-[11px] font-bold mt-1 ${meta.text}`}>{meta.label}</p>
-              <p className="text-[9px] text-gray-500 leading-snug">{meta.desc}</p>
-              <ScoreBar value={value} color={meta.bar} />
-            </div>
-          )
-        })}
+      {/* Two big score blocks */}
+      <div className="flex gap-3">
+        <ScoreBlock
+          value={xiPower}
+          label="Team Quality"
+          sublabel="How good your starting XI is, ignoring fixtures"
+          accent={qColor}
+        />
+        <ScoreBlock
+          value={xiGWScore}
+          label="This GW"
+          sublabel="Team Quality adjusted for this week's fixtures"
+          accent={gwColor}
+        />
       </div>
 
-      {/* GW delta hint */}
-      {Math.abs(gwDelta) >= 3 && (
-        <p className="text-[10px] text-gray-400 mt-2.5 text-center">
-          {gwDelta < 0
-            ? `⚠️ GW Score is ${Math.abs(gwDelta)} pts below XI Power — tough fixtures ahead`
-            : `✅ GW Score is ${gwDelta} pts above XI Power — favourable fixtures this week`}
+      {/* Delta hint */}
+      {Math.abs(delta) >= 3 && (
+        <p className="text-xs text-gray-400 mt-3 text-center">
+          {delta < 0
+            ? `⚠️ This GW is ${Math.abs(delta)} pts below Team Quality — tough fixtures`
+            : `✅ This GW is ${delta} pts above Team Quality — favourable fixtures`}
         </p>
       )}
     </div>

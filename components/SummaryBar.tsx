@@ -6,9 +6,9 @@ interface Props { state: AppState }
 function Card({ label, value, sub, highlight }: { label: string; value: string; sub: string; highlight?: boolean }) {
   return (
     <div className={`rounded-xl px-4 py-3 shadow-xs border ${highlight ? 'bg-green-50 border-green-100' : 'bg-white border-gray-100'}`}>
-      <p className={`text-[9px] font-extrabold uppercase tracking-widest mb-1 ${highlight ? 'text-green-600' : 'text-gray-400'}`}>{label}</p>
-      <p className={`text-[15px] font-extrabold tracking-tight leading-tight ${highlight ? 'text-green-700' : 'text-gray-900'}`}>{value}</p>
-      <p className={`text-[10px] mt-0.5 leading-tight ${highlight ? 'text-green-600' : 'text-gray-400'}`}>{sub}</p>
+      <p className={`text-[10px] font-extrabold uppercase tracking-widest mb-1.5 ${highlight ? 'text-green-600' : 'text-gray-400'}`}>{label}</p>
+      <p className={`text-xl font-extrabold tracking-tight leading-tight ${highlight ? 'text-green-700' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-xs mt-1 leading-tight ${highlight ? 'text-green-600' : 'text-gray-500'}`}>{sub}</p>
     </div>
   )
 }
