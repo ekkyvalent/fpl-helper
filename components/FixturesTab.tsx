@@ -1,5 +1,5 @@
 import type { AppState, UpcomingFixture } from '@/lib/types'
-import { posLabel, fdrColor, fmt } from '@/lib/fpl'
+import { posLabel, fdrColor, fmt, playerPowerRating, playerGWScore, powerColor } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -94,6 +94,12 @@ export default function FixturesTab({ state }: Props) {
             <th className="text-right px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
               PPG
             </th>
+            <th className="text-center px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              PWR
+            </th>
+            <th className="text-center px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              GW
+            </th>
             {nextGWs.map((gw) => (
               <th
                 key={gw}
@@ -159,6 +165,20 @@ export default function FixturesTab({ state }: Props) {
                 </span>
               </td>
 
+              {/* Power rating */}
+              <td className="px-2 py-3 text-center">
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerPowerRating(p))}`}>
+                  {playerPowerRating(p)}
+                </span>
+              </td>
+
+              {/* GW score */}
+              <td className="px-2 py-3 text-center">
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerGWScore(p))}`}>
+                  {playerGWScore(p)}
+                </span>
+              </td>
+
               {/* GW fixture chips */}
               {nextGWs.map((gw) => (
                 <td key={gw} className="px-2 py-3 text-center">
@@ -174,7 +194,7 @@ export default function FixturesTab({ state }: Props) {
 
           {/* Bench divider */}
           <tr>
-            <td colSpan={5 + nextGWs.length} className="px-4 py-2 bg-gray-50 border-y border-gray-100">
+            <td colSpan={7 + nextGWs.length} className="px-4 py-2 bg-gray-50 border-y border-gray-100">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Bench</span>
             </td>
           </tr>
@@ -219,6 +239,16 @@ export default function FixturesTab({ state }: Props) {
               <td className="px-3 py-2.5 text-right">
                 <span className="text-[12px] font-semibold text-gray-600">
                   {parseFloat(p.points_per_game || '0').toFixed(1)}
+                </span>
+              </td>
+              <td className="px-2 py-2.5 text-center">
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerPowerRating(p))}`}>
+                  {playerPowerRating(p)}
+                </span>
+              </td>
+              <td className="px-2 py-2.5 text-center">
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerGWScore(p))}`}>
+                  {playerGWScore(p)}
                 </span>
               </td>
               {nextGWs.map((gw) => (

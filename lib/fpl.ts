@@ -376,6 +376,108 @@ export function recommendStartingXI(squad: SquadPlayer[]): SquadPlayer[] {
   return chosen
 }
 
+// ── Power Rating & GW Score ───────────────────────────────────
+
+/**
+ * Player Power Rating (1–99) — intrinsic quality, fixture-agnostic.
+ * Answers: "how good is this player based on what they've been doing this season?"
+ *
+ * Normalised against realistic PL ceilings per position so the scale is
+ * consistent across roles. Players with < 3 games blend towards 40 (unknown)
+ * rather than crashing to zero. Availability applies a soft cap.
+ */
+export function playerPowerRating(p: SquadPlayer): number {
+  const gamesPlayed = (p.minutes ?? 0) / 90
+  const hasData     = gamesPlayed >= 3
+  // Confidence: ramps to 1.0 at 15 games (~half season). Below that we blend
+  // the raw score towards a neutral 40 so new/returning players aren't over-rated.
+  const confidence  = Math.min(gamesPlayed / 15, 1)
+
+  const ppg   = parseFloat(p.points_per_game || '0')
+  const form  = parseFloat(p.form || '0')
+  const xG90  = parseFloat(p.expected_goals_per_90 || '0')
+  const xA90  = parseFloat(p.expected_assists_per_90 || '0')
+  const xGI90 = parseFloat(p.expected_goal_involvements_per_90 || '0')
+
+  // Clamp helper: normalises a value against a ceiling → [0, 1]
+  const norm = (val: number, ceiling: number) => Math.min(val / ceiling, 1)
+
+  let raw: number
+
+  if (p.element_type === 1) {
+    // GK: saves per 90 + clean sheet rate + PPG
+    // Ceilings: elite GK ≈ 4.5 saves/90, 0.45 CS rate, 6.0 PPG
+    const savesP90 = hasData ? (p.saves ?? 0) / gamesPlayed : 2.5
+    const csRate   = hasData ? (p.clean_sheets ?? 0) / gamesPlayed : 0.3
+    raw = norm(savesP90, 4.5) * 35 + norm(csRate, 0.45) * 35 + norm(ppg, 6) * 30
+
+  } else if (p.element_type === 2) {
+    // DEF: clean sheet rate dominant, xGI bonus for attacking defenders, PPG
+    // Ceilings: 0.45 CS rate, 0.20 xGI/90, 6.0 PPG
+    const csRate = hasData ? (p.clean_sheets ?? 0) / gamesPlayed : 0.3
+    raw = norm(csRate, 0.45) * 40 + norm(xGI90, 0.20) * 30 + norm(ppg, 6) * 30
+
+  } else if (p.element_type === 3) {
+    // MID: balanced goals + assists, PPG, small form signal
+    // Ceilings: 0.35 xG/90, 0.35 xA/90, 8.0 PPG, 10 form
+    raw = norm(xG90, 0.35) * 25 + norm(xA90, 0.35) * 25 + norm(ppg, 8) * 35 + norm(form, 10) * 15
+
+  } else {
+    // FWD: goals dominant, xA bonus, PPG, small form signal
+    // Ceilings: 0.65 xG/90, 0.30 xA/90, 8.0 PPG, 10 form
+    raw = norm(xG90, 0.65) * 40 + norm(xA90, 0.30) * 20 + norm(ppg, 8) * 30 + norm(form, 10) * 10
+  }
+
+  // Blend towards 40 (neutral/unknown) when minutes are low
+  const withConfidence = raw * confidence + 40 * (1 - confidence)
+
+  // Availability soft cap — injured players can't be rated at full power
+  const availCap =
+    p.status === 'a'                                    ? 1.00 :
+    (p.chance_of_playing_next_round ?? 0) >= 75         ? 0.92 :
+    (p.chance_of_playing_next_round ?? 0) >= 50         ? 0.80 : 0.65
+
+  return Math.round(Math.min(99, Math.max(1, withConfidence * availCap)))
+}
+
+/**
+ * Player GW Score (1–99) — power rating adjusted for the upcoming fixture.
+ * Answers: "how well positioned is this player for the next gameweek?"
+ *
+ * Fixture multiplier: dFDR 1 (easiest) = ×1.25, dFDR 3 (neutral) = ×1.0,
+ * dFDR 5 (hardest) = ×0.75. BGW (no fixture) = ×0.5.
+ */
+export function playerGWScore(p: SquadPlayer): number {
+  const power = playerPowerRating(p)
+  if (!p.fixtures[0]) return Math.round(power * 0.5)   // blank gameweek
+  const dFdr   = p.fixtures[0].dDifficulty ?? p.fixtures[0].difficulty
+  // Soft multiplier centred at dFDR 3: range 0.75 – 1.25
+  const fixMult = 0.75 + ((5 - dFdr) / 4) * 0.5
+  return Math.round(Math.min(99, Math.max(1, power * fixMult)))
+}
+
+/** Colour class for a power / GW score badge */
+export function powerColor(score: number): string {
+  if (score >= 80) return 'bg-green-100 text-green-800'
+  if (score >= 65) return 'bg-lime-100 text-lime-800'
+  if (score >= 50) return 'bg-yellow-100 text-yellow-800'
+  if (score >= 35) return 'bg-orange-100 text-orange-800'
+  return 'bg-red-100 text-red-800'
+}
+
+/** Squad-level aggregates for the starting XI */
+export function squadPowerStats(squad: SquadPlayer[]): {
+  squadPower: number     // avg power of all 15
+  xiPower: number        // avg power of starting 11
+  xiGWScore: number      // avg GW score of starting 11
+} {
+  const starting = squad.slice(0, 11)
+  const xiPower    = Math.round(starting.reduce((s, p) => s + playerPowerRating(p), 0) / 11)
+  const xiGWScore  = Math.round(starting.reduce((s, p) => s + playerGWScore(p), 0) / 11)
+  const squadPower = Math.round(squad.reduce((s, p) => s + playerPowerRating(p), 0) / squad.length)
+  return { squadPower, xiPower, xiGWScore }
+}
+
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
   if (diff < 3.5) return 'bg-yellow-100 text-yellow-800'

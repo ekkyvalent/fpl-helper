@@ -1,5 +1,5 @@
 import type { AppState, SquadPlayer, UpcomingFixture } from '@/lib/types'
-import { posLabel, playerScore } from '@/lib/fpl'
+import { posLabel, playerScore, playerPowerRating, playerGWScore, powerColor } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -65,9 +65,19 @@ export default function CaptainTab({ state }: Props) {
               key={p.id}
               className={`bg-white rounded-xl p-5 border ${isTop ? 'border-green-500 border-2' : 'border-gray-100'}`}
             >
-              <p className={`text-[10px] font-extrabold uppercase tracking-widest mb-2 ${isTop ? 'text-green-600' : 'text-gray-400'}`}>
-                {RANK_LABELS[i]}
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isTop ? 'text-green-600' : 'text-gray-400'}`}>
+                  {RANK_LABELS[i]}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerPowerRating(p))}`}>
+                    PWR {playerPowerRating(p)}
+                  </span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${powerColor(playerGWScore(p))}`}>
+                    GW {playerGWScore(p)}
+                  </span>
+                </div>
+              </div>
               <p className="text-[19px] font-extrabold tracking-tight text-gray-900 mb-0.5">{p.web_name}</p>
               <p className="text-xs text-gray-400 mb-4">{p.teamFull} · {posLabel(p.element_type)}</p>
 

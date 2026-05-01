@@ -1,5 +1,5 @@
 import type { AppState } from '@/lib/types'
-import { calculateSquadRating } from '@/lib/fpl'
+import { calculateSquadRating, squadPowerStats, powerColor } from '@/lib/fpl'
 
 interface Props { state: AppState }
 
@@ -76,6 +76,7 @@ function StatRow({ label, value, sub }: { label: string; value: string; sub?: st
 export default function SquadRatingCard({ state }: Props) {
   const { score, avgForm, avgFdr, fitCount } = calculateSquadRating(state)
   const { text, color } = ratingLabel(score)
+  const { squadPower, xiPower, xiGWScore } = squadPowerStats(state.squad)
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
@@ -86,10 +87,26 @@ export default function SquadRatingCard({ state }: Props) {
 
         <div className="flex-1">
           <p className="text-base font-extrabold mb-3" style={{ color }}>{text}</p>
-          <StatRow label="Avg Form"       value={avgForm.toFixed(1)}  sub="/ 10" />
-          <StatRow label="Next Fixture"   value={`FDR ${avgFdr.toFixed(1)}`} />
-          <StatRow label="Availability"   value={`${fitCount} / 11`} sub="fit" />
+          <StatRow label="Avg Form"     value={avgForm.toFixed(1)} sub="/ 10" />
+          <StatRow label="Next Fixture" value={`FDR ${avgFdr.toFixed(1)}`} />
+          <StatRow label="Availability" value={`${fitCount} / 11`} sub="fit" />
         </div>
+      </div>
+
+      {/* Power stats row */}
+      <div className="mt-3 pt-3 border-t border-gray-50 grid grid-cols-3 gap-2">
+        {[
+          { label: 'Squad Power', value: squadPower },
+          { label: 'XI Power',    value: xiPower    },
+          { label: 'GW Score',    value: xiGWScore  },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex flex-col items-center gap-1">
+            <span className={`text-base font-extrabold px-2 py-0.5 rounded-md ${powerColor(value)}`}>
+              {value}
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
