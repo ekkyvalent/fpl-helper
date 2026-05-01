@@ -25,7 +25,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export default function CaptainTab({ state }: Props) {
   const { teamMap } = state
 
-  const dynamic = Object.keys(state.understat ?? {}).length > 0
+  const dynamic = state.squad.some((p) => p.fixtures[0]?.dDifficulty != null)
 
   const scored: ScoredPlayer[] = state.squad
     .slice(0, 11)

@@ -7,9 +7,7 @@ import type {
   AppState,
   FPLEntry,
   FPLPicks,
-  UnderstatTeamStats,
 } from './types'
-import { computeDynamicFdr } from './dynamicFdr'
 
 export const posLabel = (type: number) =>
   ['', 'GK', 'DEF', 'MID', 'FWD'][type] ?? '?'
@@ -71,15 +69,42 @@ export function buildSquad(
   })
 }
 
+/**
+ * Compute dynamic FDR (1–5) from FPL's own weekly-updated team strength ratings.
+ * Uses opponent's defensive strength split by home/away venue.
+ * Stronger defence = higher dFDR = harder fixture.
+ */
+function computeDynamicFdrFromStrength(
+  opponent: FPLTeam,
+  isHome: boolean,      // true = MY team plays at home (opponent plays away)
+  allTeams: FPLTeam[]
+): number {
+  // Opponent is playing away when I'm home → use their away defensive strength
+  // Opponent is playing at home when I'm away → use their home defensive strength
+  const oppStr = isHome
+    ? opponent.strength_defence_away
+    : opponent.strength_defence_home
+
+  const allStr = allTeams.map((t) =>
+    isHome ? t.strength_defence_away : t.strength_defence_home
+  )
+  const min = Math.min(...allStr)
+  const max = Math.max(...allStr)
+
+  if (max === min) return 3  // fallback: all teams equal
+  const normalised = (oppStr - min) / (max - min)
+  return parseFloat((1 + 4 * normalised).toFixed(2))
+}
+
 export function buildAppState(
   bootstrap: FPLBootstrap,
   teamInfo: FPLEntry,
   picks: FPLPicks,
   fixtures: FPLFixture[],
-  currentGW: number,
-  understat: Record<string, UnderstatTeamStats> = {}
+  currentGW: number
 ): AppState {
   const teamMap = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]))
+  const allTeams = bootstrap.teams
 
   const nextEv  = bootstrap.events.find((e) => e.is_next)
   const startGW = nextEv ? nextEv.id : currentGW
@@ -87,21 +112,19 @@ export function buildAppState(
 
   const fixtureMap = buildFixtureMap(fixtures)
 
-  // Inject dynamic FDR when Understat data is available
-  if (Object.keys(understat).length > 0) {
-    for (const fixes of Object.values(fixtureMap)) {
-      for (const fix of fixes) {
-        const oppShort = teamMap[fix.opponent]?.short_name
-        if (oppShort) {
-          fix.dDifficulty = computeDynamicFdr(oppShort, fix.is_home, understat)
-        }
+  // Always inject dDifficulty — uses FPL's own weekly-updated strength ratings
+  for (const fixes of Object.values(fixtureMap)) {
+    for (const fix of fixes) {
+      const opp = teamMap[fix.opponent]
+      if (opp) {
+        fix.dDifficulty = computeDynamicFdrFromStrength(opp, fix.is_home, allTeams)
       }
     }
   }
 
   const squad = buildSquad(bootstrap, picks, fixtureMap, teamMap, nextGWs)
 
-  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap, understat }
+  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap, understat: {} }
 }
 
 // ── Team Colors (2024/25 Premier League) ──────────────────────

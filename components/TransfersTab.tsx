@@ -12,7 +12,7 @@ interface Replacement extends FPLPlayer {
 }
 
 const hasDynamic = (state: AppState) =>
-  Object.keys(state.understat ?? {}).length > 0
+  state.squad.some((p) => p.fixtures[0]?.dDifficulty != null)
 
 function getSellCandidates(state: AppState): SquadPlayer[] {
   const dynamic = hasDynamic(state)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { AppState, UnderstatTeamStats } from '@/lib/types'
+import type { AppState } from '@/lib/types'
 import { buildAppState } from '@/lib/fpl'
 import SummaryBar from '@/components/SummaryBar'
 import SquadRatingCard from '@/components/SquadRatingCard'
@@ -171,16 +171,7 @@ export default function Home() {
       setLoadMsg('Pulling fixture data…')
       const fixtures = await fpl('/fixtures')
 
-      setLoadMsg('Analysing fixture difficulty…')
-      let understat: Record<string, UnderstatTeamStats> = {}
-      try {
-        const res = await fetch('/api/understat')
-        if (res.ok) understat = await res.json()
-      } catch {
-        // non-fatal — app falls back to static FDR
-      }
-
-      const state = buildAppState(bootstrap, teamInfo, picks, fixtures, currentGW, understat)
+      const state = buildAppState(bootstrap, teamInfo, picks, fixtures, currentGW)
       setAppState(state)
       setScreen('app')
     } catch (err) {
