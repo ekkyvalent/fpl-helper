@@ -185,11 +185,15 @@ export default function Home() {
 
       setLoadMsg('Fetching squad picks…')
       let picks
-      try {
-        picks = await fpl(`/entry/${teamId}/event/${currentGW}/picks`)
-      } catch {
-        picks = await fpl(`/entry/${teamId}/event/${currentGW - 1}/picks`)
+      for (const gw of [currentGW, currentGW - 1, currentGW - 2]) {
+        try {
+          picks = await fpl(`/entry/${teamId}/event/${gw}/picks`)
+          if (picks) break
+        } catch {
+          // try previous GW
+        }
       }
+      if (!picks) throw new Error('Could not find picks for any recent gameweek')
 
       setLoadMsg('Pulling fixture data…')
       const fixtures = await fpl('/fixtures')
@@ -202,8 +206,9 @@ export default function Home() {
       localStorage.setItem(STORAGE_KEY, teamId)
       setSavedId(teamId)
     } catch (err) {
-      console.error(err)
-      setError('Could not load team. Double-check your Team ID and try again.')
+      console.error('[loadTeam error]', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Could not load team — ${msg}. Double-check your Team ID and try again.`)
       setScreen('input')
     }
   }
