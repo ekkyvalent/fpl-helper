@@ -181,12 +181,20 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
     {/* ════════════════════════════════════════
         MOBILE layout (below md)
     ════════════════════════════════════════ */}
-    <div className="flex md:hidden flex-col flex-1 overflow-hidden" style={{ height: 'calc(100svh - 56px)' }}>
+    <div className="flex md:hidden flex-col flex-1 min-h-0">
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Summary strip — always visible on non-Squad tabs */}
+      {mobileTab !== 'Squad' && (
+        <div className="px-3 pt-3 flex flex-col gap-3 shrink-0">
+          <SummaryBar state={state} />
+          <SquadRatingCard state={state} />
+        </div>
+      )}
+
+      {/* Scrollable content — min-h-0 is critical for flex children */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         {mobileTab === 'Squad' && (
-          <div className="bg-[#f0f5f0] p-3">
+          <div className="bg-[#f0f5f0] p-3 min-h-full">
             <SquadTab
               state={state}
               previewSquad={chipPreview?.squad}
@@ -196,8 +204,6 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
         )}
         {mobileTab !== 'Squad' && (
           <div className="p-3 flex flex-col gap-3">
-            <SummaryBar state={state} />
-            <SquadRatingCard state={state} />
             {mobileTab === 'Fixtures'  && <FixturesTab  state={state} />}
             {mobileTab === 'Transfers' && <TransfersTab state={state} />}
             {mobileTab === 'Captain'   && <CaptainTab   state={state} />}
@@ -206,13 +212,13 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
         )}
       </div>
 
-      {/* Bottom tab bar */}
-      <div className="bg-white border-t border-gray-100 flex shrink-0 safe-area-pb">
+      {/* Bottom tab bar — shrink-0 keeps it pinned */}
+      <div className="bg-white border-t border-gray-100 flex shrink-0">
         {MOBILE_TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => handleMobileTab(tab)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition-colors cursor-pointer ${
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 pb-3 text-[10px] font-bold transition-colors cursor-pointer ${
               mobileTab === tab ? 'text-green-600' : 'text-gray-400'
             }`}
           >
@@ -301,7 +307,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8faf9]">
+    <div className="h-[100svh] flex flex-col bg-[#f8faf9] overflow-hidden">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 h-14 flex items-center justify-between sticky top-0 z-50">
         <button
