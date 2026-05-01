@@ -210,15 +210,73 @@ export function calculateSquadRating(state: AppState): {
 /** Returns a Tailwind colour class for a given FDR value */
 // ── Recommended Starting XI ───────────────────────────────────
 
-/** Score a player for selection purposes: form × fixture ease × availability */
+/**
+ * Score a player for selection purposes.
+ *
+ * Formula: attackContrib × fixtureEase × availability × formNudge
+ *
+ * Weights by position:
+ *   GK  — saves/90 + clean-sheet rate (CS = 6 pts for GK)
+ *   DEF — CS rate dominant + xGI/90 bonus
+ *   MID — xG/90 × 5 + xA/90 × 3 + small CS bonus
+ *   FWD — xG/90 × 6 + xA/90 × 2.5
+ *
+ * fixtureEase = (6 - dFDR) / 5  → normalised 0.2–1.0 (hard multiplier)
+ * availability = 1.0 / 0.75 / 0.40 / 0.10  (hard gate)
+ * formNudge = 1 + (form/10) × 0.2  → ±20% max modifier
+ *
+ * Cold-start fallback: < 3 games of minutes → use points_per_game instead.
+ */
 export function playerScore(p: SquadPlayer): number {
-  const form     = parseFloat(p.form || '0')
-  const nextDiff = p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 3
-  const avail    =
-    p.status === 'a'                                         ? 1.00 :
-    (p.chance_of_playing_next_round ?? 0) >= 75              ? 0.75 :
-    (p.chance_of_playing_next_round ?? 0) >= 50              ? 0.40 : 0.10
-  return form * (6 - nextDiff) * avail
+  // ── Fixture ease (most important) ───────────────────────────
+  const dFdr      = p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 3
+  const fixtureEase = (6 - dFdr) / 5        // 1.0 = easiest (dFDR 1), 0.2 = hardest (dFDR 5)
+
+  // ── Availability (hard gate) ──────────────────────────────
+  const avail =
+    p.status === 'a'                                    ? 1.00 :
+    (p.chance_of_playing_next_round ?? 0) >= 75         ? 0.75 :
+    (p.chance_of_playing_next_round ?? 0) >= 50         ? 0.40 : 0.10
+
+  // ── Form nudge (least important, ±20% only) ───────────────
+  const form      = parseFloat(p.form || '0')
+  const formNudge = 1 + (form / 10) * 0.2
+
+  // ── Attack contribution (position-dependent) ─────────────
+  const gamesPlayed = (p.minutes ?? 0) / 90
+  const hasData     = gamesPlayed >= 3
+
+  const ppgFallback = parseFloat(p.points_per_game || '0') * 0.3
+
+  let attackContrib: number
+
+  if (!hasData) {
+    // Not enough minutes — use PPG as a neutral proxy
+    attackContrib = ppgFallback
+  } else if (p.element_type === 1) {
+    // GK: saves per 90 + clean sheet rate × 6 (CS = 6 pts for GK)
+    const savesP90 = (p.saves ?? 0) / gamesPlayed
+    const csRate   = (p.clean_sheets ?? 0) / gamesPlayed
+    attackContrib  = savesP90 * 0.5 + csRate * 6
+  } else if (p.element_type === 2) {
+    // DEF: CS is dominant; xGI is a bonus for attacking defenders
+    const csRate  = (p.clean_sheets ?? 0) / gamesPlayed
+    const xGI90   = parseFloat(p.expected_goal_involvements_per_90 || '0')
+    attackContrib = csRate * 6 + xGI90 * 6
+  } else if (p.element_type === 3) {
+    // MID: attacking output, small CS bonus (mids earn CS points too)
+    const xG90    = parseFloat(p.expected_goals_per_90 || '0')
+    const xA90    = parseFloat(p.expected_assists_per_90 || '0')
+    const csRate  = (p.clean_sheets ?? 0) / gamesPlayed
+    attackContrib = xG90 * 5 + xA90 * 3 + csRate * 1
+  } else {
+    // FWD: goals-first, assist bonus
+    const xG90    = parseFloat(p.expected_goals_per_90 || '0')
+    const xA90    = parseFloat(p.expected_assists_per_90 || '0')
+    attackContrib = xG90 * 6 + xA90 * 2.5
+  }
+
+  return attackContrib * fixtureEase * avail * formNudge
 }
 
 /**

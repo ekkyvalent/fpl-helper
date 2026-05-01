@@ -18,6 +18,10 @@ export interface FPLPlayer {
   expected_goals_per_90: string
   expected_assists_per_90: string
   expected_goal_involvements_per_90: string
+  clean_sheets: number
+  saves: number
+  goals_conceded: number
+  bonus: number
 }
 
 export interface FPLTeam {

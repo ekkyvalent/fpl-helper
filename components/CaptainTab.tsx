@@ -1,5 +1,5 @@
 import type { AppState, SquadPlayer, UpcomingFixture } from '@/lib/types'
-import { posLabel } from '@/lib/fpl'
+import { posLabel, playerScore } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -30,10 +30,10 @@ export default function CaptainTab({ state }: Props) {
   const scored: ScoredPlayer[] = state.squad
     .slice(0, 11)
     .map((p) => {
-      const form    = parseFloat(p.form || '0')
       const nextFix = p.fixtures[0]
-      const fdr     = dynamic ? p.avgDFdr3 : p.avgFdr3
-      const score   = form * (6 - fdr) * (nextFix?.is_home ? 1.15 : 1.0)
+      // Use the same scoring formula as the recommended XI for consistency
+      const homeBonus = nextFix?.is_home ? 1.1 : 1.0
+      const score = playerScore(p) * homeBonus
       return { ...p, score, nextFix, ownership: parseFloat(p.selected_by_percent || '0') }
     })
     .sort((a, b) => b.score - a.score)
