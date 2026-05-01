@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { AppState } from '@/lib/types'
 import { buildAppState } from '@/lib/fpl'
 import SummaryBar from '@/components/SummaryBar'
@@ -10,12 +10,21 @@ import FixturesTab from '@/components/FixturesTab'
 import TransfersTab from '@/components/TransfersTab'
 import CaptainTab from '@/components/CaptainTab'
 
+const STORAGE_KEY = 'fpl_team_id'
 const RIGHT_TABS = ['Fixtures', 'Transfers', 'Captain'] as const
 type RightTab = (typeof RIGHT_TABS)[number]
 
 // ── Input Screen ─────────────────────────────────────────────
-function InputScreen({ onLoad }: { onLoad: (id: string) => void }) {
-  const [value, setValue] = useState('')
+function InputScreen({
+  onLoad,
+  onForget,
+  savedId,
+}: {
+  onLoad: (id: string) => void
+  onForget: () => void
+  savedId: string
+}) {
+  const [value, setValue] = useState(savedId)
   const [err, setErr] = useState('')
 
   function submit() {
@@ -68,6 +77,15 @@ function InputScreen({ onLoad }: { onLoad: (id: string) => void }) {
         </a>{' '}
         → Points → check the URL
       </p>
+
+      {savedId && (
+        <button
+          onClick={onForget}
+          className="mt-3 text-xs text-gray-400 hover:text-red-500 transition-colors cursor-pointer underline underline-offset-2"
+        >
+          Forget saved Team ID
+        </button>
+      )}
     </div>
   )
 }
@@ -96,13 +114,9 @@ function AppScreen({ state }: { state: AppState }) {
 
       {/* ── RIGHT: Info + Tabs ── */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 min-w-0">
-        {/* Summary cards 2×2 */}
         <SummaryBar state={state} />
-
-        {/* Squad rating */}
         <SquadRatingCard state={state} />
 
-        {/* Tab nav + content */}
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-4">
             {RIGHT_TABS.map((tab) => (
@@ -136,6 +150,15 @@ export default function Home() {
   const [loadMsg, setLoadMsg]   = useState('')
   const [error, setError]       = useState('')
   const [appState, setAppState] = useState<AppState | null>(null)
+  const [savedId, setSavedId]   = useState('')
+
+  // On first mount: read saved ID and auto-load if present
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY) ?? ''
+    setSavedId(stored)
+    if (stored) loadTeam(stored)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fpl = useCallback(async (path: string) => {
     const res = await fetch(`/api/fpl${path}`)
@@ -174,11 +197,20 @@ export default function Home() {
       const state = buildAppState(bootstrap, teamInfo, picks, fixtures, currentGW)
       setAppState(state)
       setScreen('app')
+
+      // Persist the ID for next visit
+      localStorage.setItem(STORAGE_KEY, teamId)
+      setSavedId(teamId)
     } catch (err) {
       console.error(err)
       setError('Could not load team. Double-check your Team ID and try again.')
       setScreen('input')
     }
+  }
+
+  function forgetTeam() {
+    localStorage.removeItem(STORAGE_KEY)
+    setSavedId('')
   }
 
   return (
@@ -205,7 +237,7 @@ export default function Home() {
         </div>
       )}
 
-      {screen === 'input'   && <InputScreen onLoad={loadTeam} />}
+      {screen === 'input'   && <InputScreen onLoad={loadTeam} onForget={forgetTeam} savedId={savedId} />}
       {screen === 'loading' && <LoadingScreen msg={loadMsg} />}
       {screen === 'app'     && appState && <AppScreen state={appState} />}
     </div>

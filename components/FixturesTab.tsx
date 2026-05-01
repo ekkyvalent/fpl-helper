@@ -1,11 +1,10 @@
 import type { AppState, UpcomingFixture } from '@/lib/types'
-import { posLabel, fdrColor } from '@/lib/fpl'
+import { posLabel, fdrColor, fmt } from '@/lib/fpl'
 
 interface Props {
   state: AppState
 }
 
-// dDifficulty is always computed from FPL's own team strength ratings
 const hasDynamic = (state: AppState) =>
   state.squad.some((p) => p.fixtures[0]?.dDifficulty != null)
 
@@ -20,7 +19,7 @@ function FixChip({
 }) {
   if (!fix) {
     return (
-      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[64px] text-center">
+      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[58px] text-center">
         BGW
       </span>
     )
@@ -32,7 +31,7 @@ function FixChip({
 
   return (
     <span
-      className={`inline-flex flex-col items-center px-2 py-1 rounded-md text-[11px] font-bold min-w-[64px] text-center leading-tight ${fdrColor(diff)}`}
+      className={`inline-flex flex-col items-center px-2 py-1 rounded-md text-[11px] font-bold min-w-[58px] text-center leading-tight ${fdrColor(diff)}`}
     >
       <span>{opp} {ha}</span>
       {useDynamic && fix.dDifficulty != null && (
@@ -42,10 +41,25 @@ function FixChip({
   )
 }
 
+// Colour-coded form badge
+function FormBadge({ form }: { form: string }) {
+  const val = parseFloat(form || '0')
+  const color =
+    val >= 8 ? 'text-green-700 bg-green-50' :
+    val >= 5 ? 'text-lime-700 bg-lime-50' :
+    val >= 3 ? 'text-yellow-700 bg-yellow-50' :
+               'text-red-600 bg-red-50'
+  return (
+    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${color}`}>
+      {val.toFixed(1)}
+    </span>
+  )
+}
+
 export default function FixturesTab({ state }: Props) {
-  const starting  = state.squad.slice(0, 11)
+  const starting = state.squad.slice(0, 11)
   const { nextGWs, teamMap } = state
-  const dynamic   = hasDynamic(state)
+  const dynamic  = hasDynamic(state)
 
   return (
     <div className="overflow-x-auto">
@@ -61,13 +75,25 @@ export default function FixturesTab({ state }: Props) {
       <table className="w-full bg-white border border-gray-100 rounded-xl overflow-hidden text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
-            <th className="text-left px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
               Player
+            </th>
+            <th className="text-right px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Price
+            </th>
+            <th className="text-right px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Form
+            </th>
+            <th className="text-right px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              Sel%
+            </th>
+            <th className="text-right px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+              PPG
             </th>
             {nextGWs.map((gw) => (
               <th
                 key={gw}
-                className="text-center px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400"
+                className="text-center px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400"
               >
                 GW {gw}
               </th>
@@ -82,7 +108,8 @@ export default function FixturesTab({ state }: Props) {
                 i === starting.length - 1 ? 'border-none' : ''
               }`}
             >
-              <td className="px-5 py-3">
+              {/* Player name */}
+              <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <div>
                     <p className="font-bold text-gray-900 text-[13px]">{p.web_name}</p>
@@ -90,10 +117,9 @@ export default function FixturesTab({ state }: Props) {
                       {p.teamShort} · {posLabel(p.element_type)}
                     </p>
                   </div>
-                  {/* Injury flag */}
                   {p.status !== 'a' && (
                     <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
                       style={{
                         background: p.status === 'd' ? '#fef9c3' : '#fee2e2',
                         color:      p.status === 'd' ? '#854d0e' : '#991b1b',
@@ -106,8 +132,34 @@ export default function FixturesTab({ state }: Props) {
                   )}
                 </div>
               </td>
+
+              {/* Price */}
+              <td className="px-3 py-3 text-right">
+                <span className="text-[12px] font-semibold text-gray-700">{fmt(p.now_cost)}</span>
+              </td>
+
+              {/* Form */}
+              <td className="px-3 py-3 text-right">
+                <FormBadge form={p.form} />
+              </td>
+
+              {/* Selected % */}
+              <td className="px-3 py-3 text-right">
+                <span className="text-[12px] text-gray-600">
+                  {parseFloat(p.selected_by_percent || '0').toFixed(1)}%
+                </span>
+              </td>
+
+              {/* Points per game (season avg) */}
+              <td className="px-3 py-3 text-right">
+                <span className="text-[12px] font-semibold text-gray-700">
+                  {parseFloat(p.points_per_game || '0').toFixed(1)}
+                </span>
+              </td>
+
+              {/* GW fixture chips */}
               {nextGWs.map((gw) => (
-                <td key={gw} className="px-3 py-3 text-center">
+                <td key={gw} className="px-2 py-3 text-center">
                   <FixChip
                     fix={p.fixtures.find((f) => f.gw === gw)}
                     teamMap={teamMap}
@@ -121,11 +173,11 @@ export default function FixturesTab({ state }: Props) {
       </table>
 
       {/* Legend */}
-      <div className="flex gap-3 mt-3 flex-wrap">
+      <div className="flex gap-3 mt-3 flex-wrap items-center">
         {[
-          { label: 'Easy (≤2)',   cls: 'bg-green-100 text-green-800' },
-          { label: 'Medium (3)',  cls: 'bg-yellow-100 text-yellow-800' },
-          { label: 'Hard (4)',    cls: 'bg-orange-100 text-orange-800' },
+          { label: 'Easy (≤2)',     cls: 'bg-green-100 text-green-800' },
+          { label: 'Medium (3)',    cls: 'bg-yellow-100 text-yellow-800' },
+          { label: 'Hard (4)',      cls: 'bg-orange-100 text-orange-800' },
           { label: 'Very Hard (5)', cls: 'bg-red-100 text-red-800' },
         ].map(({ label, cls }) => (
           <span key={label} className={`text-[11px] font-semibold px-2.5 py-1 rounded-md ${cls}`}>
@@ -134,9 +186,10 @@ export default function FixturesTab({ state }: Props) {
         ))}
         {dynamic && (
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-500">
-            Numbers = dynamic score
+            Numbers = smart FDR score
           </span>
         )}
+        <span className="text-[11px] text-gray-400 ml-auto">PPG = season avg pts/game</span>
       </div>
     </div>
   )

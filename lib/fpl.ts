@@ -208,6 +208,63 @@ export function calculateSquadRating(state: AppState): {
 }
 
 /** Returns a Tailwind colour class for a given FDR value */
+// ── Recommended Starting XI ───────────────────────────────────
+
+/** Score a player for selection purposes: form × fixture ease × availability */
+export function playerScore(p: SquadPlayer): number {
+  const form     = parseFloat(p.form || '0')
+  const nextDiff = p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 3
+  const avail    =
+    p.status === 'a'                                         ? 1.00 :
+    (p.chance_of_playing_next_round ?? 0) >= 75              ? 0.75 :
+    (p.chance_of_playing_next_round ?? 0) >= 50              ? 0.40 : 0.10
+  return form * (6 - nextDiff) * avail
+}
+
+/**
+ * Pick the optimal starting XI from 15 squad players for the next GW.
+ * Rules: 1 GK, min 3 DEF / 2 MID / 1 FWD, max 5 DEF / 5 MID / 3 FWD.
+ * Optimises for playerScore (form × fixture ease × availability).
+ */
+export function recommendStartingXI(squad: SquadPlayer[]): SquadPlayer[] {
+  const scored = squad.map((p) => ({ p, score: playerScore(p) }))
+                      .sort((a, b) => b.score - a.score)
+
+  // Best GK
+  const gkEntry = scored.find((x) => x.p.element_type === 1)
+  if (!gkEntry) return squad.slice(0, 11)   // fallback
+
+  const chosen: SquadPlayer[] = [gkEntry.p]
+  const remaining = scored.filter((x) => x.p.element_type !== 1)
+
+  const counts: Record<number, number> = { 2: 0, 3: 0, 4: 0 }
+  const mins:   Record<number, number> = { 2: 3, 3: 2, 4: 1 }
+  const maxs:   Record<number, number> = { 2: 5, 3: 5, 4: 3 }
+
+  // Pass 1 — satisfy minimums with the best available at each position
+  for (const posType of [2, 3, 4]) {
+    const posPlayers = remaining.filter((x) => x.p.element_type === posType)
+    for (let i = 0; i < mins[posType] && i < posPlayers.length; i++) {
+      chosen.push(posPlayers[i].p)
+      counts[posType]++
+    }
+  }
+
+  // Pass 2 — fill the remaining 4 spots with highest-scoring players, respecting maxs
+  const chosenIds = new Set(chosen.map((p) => p.id))
+  const flex = remaining.filter((x) => !chosenIds.has(x.p.id))
+
+  for (const { p } of flex) {
+    if (chosen.length >= 11) break
+    if (counts[p.element_type] < maxs[p.element_type]) {
+      chosen.push(p)
+      counts[p.element_type]++
+    }
+  }
+
+  return chosen
+}
+
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
   if (diff < 3.5) return 'bg-yellow-100 text-yellow-800'
