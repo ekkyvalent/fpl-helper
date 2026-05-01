@@ -183,15 +183,7 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
     ════════════════════════════════════════ */}
     <div className="flex md:hidden flex-col flex-1 min-h-0">
 
-      {/* Summary strip — always visible on non-Squad tabs */}
-      {mobileTab !== 'Squad' && (
-        <div className="px-3 pt-3 flex flex-col gap-3 shrink-0">
-          <SummaryBar state={state} />
-          <SquadRatingCard state={state} />
-        </div>
-      )}
-
-      {/* Scrollable content — min-h-0 is critical for flex children */}
+      {/* Scrollable content — everything scrolls together */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {mobileTab === 'Squad' && (
           <div className="bg-[#f0f5f0] p-3 min-h-full">
@@ -204,6 +196,8 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
         )}
         {mobileTab !== 'Squad' && (
           <div className="p-3 flex flex-col gap-3">
+            <SummaryBar state={state} />
+            <SquadRatingCard state={state} />
             {mobileTab === 'Fixtures'  && <FixturesTab  state={state} />}
             {mobileTab === 'Transfers' && <TransfersTab state={state} />}
             {mobileTab === 'Captain'   && <CaptainTab   state={state} />}

@@ -139,35 +139,46 @@ export default function ChipTab({ state, onSquadChange }: Props) {
 
       {/* ── Chip squad strength ── */}
       {(() => {
-        const { squadPower: sp, xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
+        const { xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
         const delta = gw - xp
-        const stats = [
-          { label: 'Squad Power', value: sp, desc: 'All 15 players' },
-          { label: 'XI Power',    value: xp, desc: 'Starting XI quality' },
-          { label: 'GW Score',    value: gw, desc: 'This GW outlook' },
+        function scoreColor(v: number) {
+          if (v >= 70) return { text: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
+          if (v >= 55) return { text: '#65a30d', bg: '#f7fee7', border: '#d9f99d' }
+          if (v >= 40) return { text: '#d97706', bg: '#fffbeb', border: '#fde68a' }
+          return              { text: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
+        }
+        const blocks = [
+          { value: xp, label: 'Team Quality', sublabel: 'How good the recommended XI is, ignoring fixtures', accent: scoreColor(xp) },
+          { value: gw, label: 'This GW',      sublabel: 'Team Quality adjusted for this week\'s fixtures',   accent: scoreColor(gw) },
         ]
         return (
-          <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-3">
+          <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2.5">
               Recommended Squad Strength
             </p>
-            <div className="grid grid-cols-3 gap-2">
-              {stats.map(({ label, value, desc }) => (
-                <div key={label} className="flex flex-col items-center gap-1 bg-gray-50 rounded-lg py-2.5 px-2">
-                  <span className={`text-[20px] font-extrabold ${powerColor(value).replace('bg-', 'text-').split(' ')[0]}`}
-                    style={{ color: value >= 70 ? '#16a34a' : value >= 55 ? '#84cc16' : value >= 40 ? '#f59e0b' : '#ef4444' }}>
+            <div className="flex gap-3">
+              {blocks.map(({ value, label, sublabel, accent }) => (
+                <div
+                  key={label}
+                  className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-0.5"
+                  style={{ background: accent.bg, borderColor: accent.border }}
+                >
+                  <span className="text-4xl font-extrabold leading-none tracking-tight" style={{ color: accent.text }}>
                     {value}
                   </span>
-                  <span className="text-[10px] font-bold text-gray-600">{label}</span>
-                  <span className="text-[9px] text-gray-400 text-center leading-tight">{desc}</span>
+                  <p className="text-[13px] font-bold text-gray-800 mt-1.5">{label}</p>
+                  <p className="text-[11px] text-gray-500 leading-snug">{sublabel}</p>
+                  <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden mt-2">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, background: accent.text }} />
+                  </div>
                 </div>
               ))}
             </div>
             {Math.abs(delta) >= 3 && (
-              <p className="text-[10px] text-gray-400 mt-2 text-center">
+              <p className="text-xs text-gray-400 mt-3 text-center">
                 {delta < 0
-                  ? `⚠️ GW Score is ${Math.abs(delta)} pts below XI Power — tough fixtures`
-                  : `✅ GW Score is ${delta} pts above XI Power — favourable fixtures`}
+                  ? `⚠️ This GW is ${Math.abs(delta)} pts below Team Quality — tough fixtures`
+                  : `✅ This GW is ${delta} pts above Team Quality — favourable fixtures`}
               </p>
             )}
           </div>
