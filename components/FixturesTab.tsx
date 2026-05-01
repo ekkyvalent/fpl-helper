@@ -5,29 +5,58 @@ interface Props {
   state: AppState
 }
 
-function FixChip({ fix, teamMap }: { fix: UpcomingFixture | undefined; teamMap: AppState['teamMap'] }) {
+const hasDynamic = (state: AppState) =>
+  Object.keys(state.understat ?? {}).length > 0
+
+function FixChip({
+  fix,
+  teamMap,
+  useDynamic,
+}: {
+  fix: UpcomingFixture | undefined
+  teamMap: AppState['teamMap']
+  useDynamic: boolean
+}) {
   if (!fix) {
     return (
-      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[58px] text-center">
+      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[64px] text-center">
         BGW
       </span>
     )
   }
-  const opp = teamMap[fix.opponent]?.short_name ?? '?'
-  const ha  = fix.is_home ? 'H' : 'A'
+
+  const opp  = teamMap[fix.opponent]?.short_name ?? '?'
+  const ha   = fix.is_home ? 'H' : 'A'
+  const diff = (useDynamic && fix.dDifficulty != null) ? fix.dDifficulty : fix.difficulty
+
   return (
-    <span className={`inline-block px-2 py-1 rounded-md text-[11px] font-bold min-w-[58px] text-center ${fdrColor(fix.difficulty)}`}>
-      {opp} {ha}
+    <span
+      className={`inline-flex flex-col items-center px-2 py-1 rounded-md text-[11px] font-bold min-w-[64px] text-center leading-tight ${fdrColor(diff)}`}
+    >
+      <span>{opp} {ha}</span>
+      {useDynamic && fix.dDifficulty != null && (
+        <span className="text-[9px] opacity-75 font-semibold">{fix.dDifficulty.toFixed(1)}</span>
+      )}
     </span>
   )
 }
 
 export default function FixturesTab({ state }: Props) {
-  const starting = state.squad.slice(0, 11)
+  const starting  = state.squad.slice(0, 11)
   const { nextGWs, teamMap } = state
+  const dynamic   = hasDynamic(state)
 
   return (
     <div className="overflow-x-auto">
+      {dynamic && (
+        <div className="flex items-center gap-2 mb-3 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5">
+          <span className="text-green-600 text-sm">⚡</span>
+          <p className="text-xs text-green-700 font-semibold">
+            Dynamic FDR active — colours &amp; ratings based on rolling xGA data from Understat
+          </p>
+        </div>
+      )}
+
       <table className="w-full bg-white border border-gray-100 rounded-xl overflow-hidden text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
@@ -48,17 +77,41 @@ export default function FixturesTab({ state }: Props) {
           {starting.map((p, i) => (
             <tr
               key={p.id}
-              className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${i === starting.length - 1 ? 'border-none' : ''}`}
+              className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${
+                i === starting.length - 1 ? 'border-none' : ''
+              }`}
             >
               <td className="px-5 py-3">
-                <p className="font-bold text-gray-900 text-[13px]">{p.web_name}</p>
-                <p className="text-[11px] text-gray-400">
-                  {p.teamShort} · {posLabel(p.element_type)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <p className="font-bold text-gray-900 text-[13px]">{p.web_name}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {p.teamShort} · {posLabel(p.element_type)}
+                    </p>
+                  </div>
+                  {/* Injury flag */}
+                  {p.status !== 'a' && (
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: p.status === 'd' ? '#fef9c3' : '#fee2e2',
+                        color:      p.status === 'd' ? '#854d0e' : '#991b1b',
+                      }}
+                    >
+                      {p.chance_of_playing_next_round != null
+                        ? `${p.chance_of_playing_next_round}%`
+                        : p.status === 'd' ? '?' : 'OUT'}
+                    </span>
+                  )}
+                </div>
               </td>
               {nextGWs.map((gw) => (
                 <td key={gw} className="px-3 py-3 text-center">
-                  <FixChip fix={p.fixtures.find((f) => f.gw === gw)} teamMap={teamMap} />
+                  <FixChip
+                    fix={p.fixtures.find((f) => f.gw === gw)}
+                    teamMap={teamMap}
+                    useDynamic={dynamic}
+                  />
                 </td>
               ))}
             </tr>
@@ -69,15 +122,20 @@ export default function FixturesTab({ state }: Props) {
       {/* Legend */}
       <div className="flex gap-3 mt-3 flex-wrap">
         {[
-          { label: 'Easy (FDR 1–2)', cls: 'bg-green-100 text-green-800' },
-          { label: 'Medium (FDR 3)',  cls: 'bg-yellow-100 text-yellow-800' },
-          { label: 'Hard (FDR 4)',    cls: 'bg-orange-100 text-orange-800' },
-          { label: 'Very Hard (5)',   cls: 'bg-red-100 text-red-800' },
+          { label: 'Easy (≤2)',   cls: 'bg-green-100 text-green-800' },
+          { label: 'Medium (3)',  cls: 'bg-yellow-100 text-yellow-800' },
+          { label: 'Hard (4)',    cls: 'bg-orange-100 text-orange-800' },
+          { label: 'Very Hard (5)', cls: 'bg-red-100 text-red-800' },
         ].map(({ label, cls }) => (
           <span key={label} className={`text-[11px] font-semibold px-2.5 py-1 rounded-md ${cls}`}>
             {label}
           </span>
         ))}
+        {dynamic && (
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-500">
+            Numbers = dynamic score
+          </span>
+        )}
       </div>
     </div>
   )

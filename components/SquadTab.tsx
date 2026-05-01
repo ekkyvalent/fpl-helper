@@ -1,6 +1,6 @@
 import type { AppState, SquadPlayer } from '@/lib/types'
 import type { UpcomingFixture } from '@/lib/types'
-import { detectFormation, pitchPosition, TEAM_COLORS, fmt, statusColor, fdrColor } from '@/lib/fpl'
+import { detectFormation, pitchPosition, TEAM_COLORS, fmt, statusColor, fdrInlineStyle } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -31,13 +31,12 @@ function Shirt({ primary, secondary }: { primary: string; secondary: string }) {
   )
 }
 
-// ── Fixture pill (FDR color coded) ───────────────────────────
+// ── Fixture pill (dFDR or static FDR color coded) ────────────
 function FixturePill({ fix, teamMap }: { fix: UpcomingFixture; teamMap: AppState['teamMap'] }) {
-  const opp = teamMap[fix.opponent]?.short_name ?? '?'
-  const ha  = fix.is_home ? 'H' : 'A'
-  // Map fdrColor class → inline style so it renders inside the pitch overlay
-  const bg  = fix.difficulty <= 2 ? '#bbf7d0' : fix.difficulty === 3 ? '#fef08a' : fix.difficulty === 4 ? '#fed7aa' : '#fecaca'
-  const fg  = fix.difficulty <= 2 ? '#166534' : fix.difficulty === 3 ? '#854d0e' : fix.difficulty === 4 ? '#9a3412' : '#991b1b'
+  const opp  = teamMap[fix.opponent]?.short_name ?? '?'
+  const ha   = fix.is_home ? 'H' : 'A'
+  const diff = fix.dDifficulty ?? fix.difficulty
+  const { bg, fg } = fdrInlineStyle(diff)
   return (
     <span
       className="text-[8px] font-bold rounded px-1 py-0.5 leading-none"
@@ -68,7 +67,7 @@ function PitchPlayer({ player, teamMap }: { player: SquadPlayer; teamMap: AppSta
           </span>
         )}
 
-        {/* Injury dot */}
+        {/* Injury / doubt indicator */}
         {player.status !== 'a' && (
           <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${statusColor(player.status)}`} />
         )}
@@ -81,6 +80,12 @@ function PitchPlayer({ player, teamMap }: { player: SquadPlayer; teamMap: AppSta
           ? <FixturePill fix={nextFix} teamMap={teamMap} />
           : <p className="text-gray-400 text-[9px] leading-none">No fix</p>
         }
+        {/* Show chance of playing if not 100% available */}
+        {player.chance_of_playing_next_round != null && player.chance_of_playing_next_round < 100 && (
+          <span className="text-[8px] font-bold leading-none" style={{ color: player.chance_of_playing_next_round <= 25 ? '#ef4444' : '#f59e0b' }}>
+            {player.chance_of_playing_next_round}%
+          </span>
+        )}
       </div>
     </div>
   )

@@ -8,11 +8,16 @@ export interface FPLPlayer {
   now_cost: number
   form: string
   status: string // 'a' | 'd' | 'i' | 'u' | 's' | 'n'
+  news: string
+  chance_of_playing_next_round: number | null
   selected_by_percent: string
   ep_next: string
   total_points: number
   minutes: number
   points_per_game: string
+  expected_goals_per_90: string
+  expected_assists_per_90: string
+  expected_goal_involvements_per_90: string
 }
 
 export interface FPLTeam {
@@ -80,7 +85,8 @@ export interface UpcomingFixture {
   gw: number
   opponent: number
   is_home: boolean
-  difficulty: number
+  difficulty: number      // FPL static FDR
+  dDifficulty?: number   // dynamic FDR from Understat (1–5, float)
 }
 
 export interface SquadPlayer extends FPLPlayer {
@@ -89,6 +95,32 @@ export interface SquadPlayer extends FPLPlayer {
   teamFull: string
   fixtures: UpcomingFixture[]
   avgFdr3: number
+  avgDFdr3: number  // dynamic FDR average
+}
+
+// ── Understat types ───────────────────────────────────────────
+export interface UnderstatGame {
+  h_a: 'h' | 'a'
+  xG: number
+  xGA: number
+  scored: number
+  missed: number
+  result: 'w' | 'd' | 'l'
+  date: string
+}
+
+export interface UnderstatTeamRaw {
+  id: string
+  title: string
+  history: UnderstatGame[]
+}
+
+export interface UnderstatTeamStats {
+  shortName: string      // FPL short_name e.g. 'ARS'
+  avgXGA: number         // rolling last-6 xGA conceded per game
+  avgXGF: number         // rolling last-6 xGF scored per game
+  homeXGA: number
+  awayXGA: number
 }
 
 export interface AppState {
@@ -100,4 +132,5 @@ export interface AppState {
   squad: SquadPlayer[]
   teamMap: Record<number, FPLTeam>
   fixtureMap: Record<number, UpcomingFixture[]>
+  understat: Record<string, UnderstatTeamStats> // keyed by FPL short_name
 }

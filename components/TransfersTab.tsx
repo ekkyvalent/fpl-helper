@@ -7,20 +7,33 @@ interface Props {
 
 interface Replacement extends FPLPlayer {
   avgFdr3: number
+  avgDFdr3: number
   teamShort: string
 }
 
+const hasDynamic = (state: AppState) =>
+  Object.keys(state.understat ?? {}).length > 0
+
 function getSellCandidates(state: AppState): SquadPlayer[] {
+  const dynamic = hasDynamic(state)
   return state.squad
     .slice(0, 11)
-    .map((p) => ({ ...p, sellScore: p.avgFdr3 * 0.6 - parseFloat(p.form || '0') * 0.4 }))
-    .filter((p) => p.avgFdr3 >= 3.7 || parseFloat(p.form || '0') < 2.0)
+    .map((p) => {
+      const fdr = dynamic ? p.avgDFdr3 : p.avgFdr3
+      return { ...p, _fdr: fdr, sellScore: fdr * 0.6 - parseFloat(p.form || '0') * 0.4 }
+    })
+    .filter((p) => {
+      const fdr = dynamic ? p.avgDFdr3 : p.avgFdr3
+      const injured = p.chance_of_playing_next_round != null && p.chance_of_playing_next_round < 75
+      return fdr >= 3.7 || parseFloat(p.form || '0') < 2.0 || injured
+    })
     .sort((a, b) => b.sellScore - a.sellScore)
     .slice(0, 3)
 }
 
 function getReplacements(p: SquadPlayer, state: AppState): Replacement[] {
-  const budget = p.now_cost / 10 + state.teamInfo.last_deadline_bank / 10
+  const budget  = p.now_cost / 10 + state.teamInfo.last_deadline_bank / 10
+  const dynamic = hasDynamic(state)
 
   return state.bootstrap.elements
     .filter(
@@ -29,28 +42,40 @@ function getReplacements(p: SquadPlayer, state: AppState): Replacement[] {
         el.id !== p.id &&
         el.now_cost / 10 <= budget + 0.1 &&
         el.status === 'a' &&
+        // Exclude players with low chance of playing
+        (el.chance_of_playing_next_round == null || el.chance_of_playing_next_round >= 75) &&
         parseFloat(el.form || '0') > parseFloat(p.form || '0')
     )
     .map((el) => {
       const fix = (state.fixtureMap[el.team] ?? [])
         .filter((f) => state.nextGWs.includes(f.gw))
         .slice(0, 3)
-      const avgFdr3 = fix.length ? fix.reduce((s, f) => s + f.difficulty, 0) / fix.length : 5
-      return { ...el, avgFdr3, teamShort: state.teamMap[el.team]?.short_name ?? '?' }
+      const avgFdr3  = fix.length ? fix.reduce((s, f) => s + f.difficulty, 0) / fix.length : 5
+      const avgDFdr3 = fix.length
+        ? fix.reduce((s, f) => s + (f.dDifficulty ?? f.difficulty), 0) / fix.length
+        : 5
+      return { ...el, avgFdr3, avgDFdr3, teamShort: state.teamMap[el.team]?.short_name ?? '?' }
     })
-    .filter((el) => el.avgFdr3 < p.avgFdr3)
+    .filter((el) => {
+      const myFdr  = dynamic ? p.avgDFdr3 : p.avgFdr3
+      const elFdr  = dynamic ? el.avgDFdr3 : el.avgFdr3
+      return elFdr < myFdr
+    })
     .sort((a, b) => parseFloat(b.form || '0') - parseFloat(a.form || '0'))
     .slice(0, 3)
 }
 
 export default function TransfersTab({ state }: Props) {
   const candidates = getSellCandidates(state)
+  const dynamic    = hasDynamic(state)
 
   if (!candidates.length) {
     return (
       <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
         <p className="text-4xl mb-3">✅</p>
-        <p className="text-gray-500 text-sm">Your squad looks solid — no urgent transfers needed right now.</p>
+        <p className="text-gray-500 text-sm">
+          Your squad looks solid — no urgent transfers needed right now.
+        </p>
       </div>
     )
   }
@@ -58,24 +83,30 @@ export default function TransfersTab({ state }: Props) {
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">
-        Based on fixture difficulty &amp; current form. Extra transfers cost <strong className="text-gray-700">−4 pts</strong> each.
+        Based on {dynamic ? 'dynamic' : 'fixture'} difficulty &amp; current form.
+        Extra transfers cost <strong className="text-gray-700">−4 pts</strong> each.
       </p>
 
       <div className="flex flex-col gap-3">
         {candidates.map((p) => {
+          const fdr = dynamic ? p.avgDFdr3 : p.avgFdr3
           const reasons: string[] = []
-          if (p.avgFdr3 >= 3.7) reasons.push(`Avg FDR ${p.avgFdr3.toFixed(1)} next 3 GW`)
-          if (parseFloat(p.form || '0') < 2.0) reasons.push(`Low form (${parseFloat(p.form || '0').toFixed(1)})`)
+          if (fdr >= 3.7) reasons.push(`Avg ${dynamic ? 'dFDR' : 'FDR'} ${fdr.toFixed(1)} next 3 GW`)
+          if (parseFloat(p.form || '0') < 2.0)
+            reasons.push(`Low form (${parseFloat(p.form || '0').toFixed(1)})`)
+          if (p.chance_of_playing_next_round != null && p.chance_of_playing_next_round < 75)
+            reasons.push(`${p.chance_of_playing_next_round}% chance of playing`)
+
           const reps = getReplacements(p, state)
 
           return (
             <div key={p.id} className="bg-white border border-gray-100 rounded-xl p-5">
               {/* Sell header */}
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-start gap-3 mb-4">
                 <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center text-base shrink-0">
                   ⬇️
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900">
                     {p.web_name}{' '}
                     <span className="font-normal text-gray-400 text-sm">{fmt(p.now_cost)}</span>
@@ -83,6 +114,12 @@ export default function TransfersTab({ state }: Props) {
                     <span className="text-xs text-gray-400">{p.teamShort} · {posLabel(p.element_type)}</span>
                   </p>
                   <p className="text-xs text-red-500 mt-0.5">{reasons.join(' · ')}</p>
+                  {/* Injury news snippet */}
+                  {p.news && (
+                    <p className="text-[11px] text-amber-600 mt-1 leading-snug">
+                      ℹ️ {p.news}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -93,23 +130,30 @@ export default function TransfersTab({ state }: Props) {
                     Suggested In
                   </p>
                   <div className="flex gap-2 flex-wrap">
-                    {reps.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex-1 min-w-[130px] bg-green-50 border border-green-100 rounded-lg px-3.5 py-3"
-                      >
-                        <p className="font-bold text-gray-900 text-[13px]">{r.web_name}</p>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          {r.teamShort} · Form {parseFloat(r.form || '0').toFixed(1)}
-                        </p>
-                        <p className="text-[11px] text-gray-500">Avg FDR {r.avgFdr3.toFixed(1)} next 3 GW</p>
-                        <p className="text-[13px] font-bold text-green-600 mt-2">{fmt(r.now_cost)}</p>
-                      </div>
-                    ))}
+                    {reps.map((r) => {
+                      const rFdr = dynamic ? r.avgDFdr3 : r.avgFdr3
+                      return (
+                        <div
+                          key={r.id}
+                          className="flex-1 min-w-[130px] bg-green-50 border border-green-100 rounded-lg px-3.5 py-3"
+                        >
+                          <p className="font-bold text-gray-900 text-[13px]">{r.web_name}</p>
+                          <p className="text-[11px] text-gray-500 mt-0.5">
+                            {r.teamShort} · Form {parseFloat(r.form || '0').toFixed(1)}
+                          </p>
+                          <p className="text-[11px] text-gray-500">
+                            Avg {dynamic ? 'dFDR' : 'FDR'} {rFdr.toFixed(1)} next 3 GW
+                          </p>
+                          <p className="text-[13px] font-bold text-green-600 mt-2">{fmt(r.now_cost)}</p>
+                        </div>
+                      )
+                    })}
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-gray-400">No affordable replacements with better fixtures found.</p>
+                <p className="text-sm text-gray-400">
+                  No affordable replacements with better fixtures found.
+                </p>
               )}
             </div>
           )

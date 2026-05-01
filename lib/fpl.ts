@@ -7,7 +7,9 @@ import type {
   AppState,
   FPLEntry,
   FPLPicks,
+  UnderstatTeamStats,
 } from './types'
+import { computeDynamicFdr } from './dynamicFdr'
 
 export const posLabel = (type: number) =>
   ['', 'GK', 'DEF', 'MID', 'FWD'][type] ?? '?'
@@ -49,19 +51,22 @@ export function buildSquad(
   const pMap = Object.fromEntries(bootstrap.elements.map((el) => [el.id, el]))
 
   return picks.picks.map((pick) => {
-    const el = pMap[pick.element]
+    const el  = pMap[pick.element]
     const fix = (fixtureMap[el.team] ?? [])
       .filter((f) => nextGWs.includes(f.gw))
       .slice(0, 5)
-    const avgFdr3 = avg(fix.slice(0, 3).map((f) => f.difficulty)) ?? 5
+
+    const avgFdr3  = avg(fix.slice(0, 3).map((f) => f.difficulty)) ?? 5
+    const avgDFdr3 = avg(fix.slice(0, 3).map((f) => f.dDifficulty ?? f.difficulty)) ?? 5
 
     return {
       ...el,
       pick,
       teamShort: teamMap[el.team]?.short_name ?? '?',
-      teamFull: teamMap[el.team]?.name ?? '?',
+      teamFull:  teamMap[el.team]?.name ?? '?',
       fixtures: fix,
       avgFdr3,
+      avgDFdr3,
     }
   })
 }
@@ -71,18 +76,32 @@ export function buildAppState(
   teamInfo: FPLEntry,
   picks: FPLPicks,
   fixtures: FPLFixture[],
-  currentGW: number
+  currentGW: number,
+  understat: Record<string, UnderstatTeamStats> = {}
 ): AppState {
   const teamMap = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]))
 
-  const nextEv = bootstrap.events.find((e) => e.is_next)
+  const nextEv  = bootstrap.events.find((e) => e.is_next)
   const startGW = nextEv ? nextEv.id : currentGW
   const nextGWs = [0, 1, 2, 3, 4].map((i) => startGW + i)
 
   const fixtureMap = buildFixtureMap(fixtures)
+
+  // Inject dynamic FDR when Understat data is available
+  if (Object.keys(understat).length > 0) {
+    for (const fixes of Object.values(fixtureMap)) {
+      for (const fix of fixes) {
+        const oppShort = teamMap[fix.opponent]?.short_name
+        if (oppShort) {
+          fix.dDifficulty = computeDynamicFdr(oppShort, fix.is_home, understat)
+        }
+      }
+    }
+  }
+
   const squad = buildSquad(bootstrap, picks, fixtureMap, teamMap, nextGWs)
 
-  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap }
+  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap, understat }
 }
 
 // ── Team Colors (2024/25 Premier League) ──────────────────────
@@ -147,8 +166,10 @@ export function calculateSquadRating(state: AppState): {
   const avgForm = starting.reduce((s, p) => s + parseFloat(p.form || '0'), 0) / 11
   const formScore = Math.min((avgForm / 8) * 40, 40)
 
-  // Fixtures (0–35): avg FDR of next fixture per starter
-  const avgFdr = starting.reduce((s, p) => s + (p.fixtures[0]?.difficulty ?? 4), 0) / 11
+  // Fixtures (0–35): use dFDR if available, else static FDR
+  const avgFdr = starting.reduce(
+    (s, p) => s + (p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 4), 0
+  ) / 11
   const fixtureScore = Math.max(0, ((5 - avgFdr) / 4) * 35)
 
   // Availability (0–25): deduct for doubts/injuries
@@ -163,11 +184,20 @@ export function calculateSquadRating(state: AppState): {
   return { score, formScore, fixtureScore, availScore, avgForm, avgFdr, fitCount }
 }
 
+/** Returns a Tailwind colour class for a given FDR value */
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
-  if (diff === 3) return 'bg-yellow-100 text-yellow-800'
-  if (diff === 4) return 'bg-orange-100 text-orange-800'
+  if (diff < 3.5) return 'bg-yellow-100 text-yellow-800'
+  if (diff < 4.5) return 'bg-orange-100 text-orange-800'
   return 'bg-red-100 text-red-800'
+}
+
+/** Returns inline background/foreground for FDR (used in SVG overlays) */
+export function fdrInlineStyle(diff: number): { bg: string; fg: string } {
+  if (diff <= 2)   return { bg: '#bbf7d0', fg: '#166534' }
+  if (diff < 3.5)  return { bg: '#fef08a', fg: '#854d0e' }
+  if (diff < 4.5)  return { bg: '#fed7aa', fg: '#9a3412' }
+  return               { bg: '#fecaca', fg: '#991b1b' }
 }
 
 export function statusColor(status: string): string {

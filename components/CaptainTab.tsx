@@ -25,12 +25,15 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export default function CaptainTab({ state }: Props) {
   const { teamMap } = state
 
+  const dynamic = Object.keys(state.understat ?? {}).length > 0
+
   const scored: ScoredPlayer[] = state.squad
     .slice(0, 11)
     .map((p) => {
       const form    = parseFloat(p.form || '0')
       const nextFix = p.fixtures[0]
-      const score   = form * (6 - p.avgFdr3) * (nextFix?.is_home ? 1.15 : 1.0)
+      const fdr     = dynamic ? p.avgDFdr3 : p.avgFdr3
+      const score   = form * (6 - fdr) * (nextFix?.is_home ? 1.15 : 1.0)
       return { ...p, score, nextFix, ownership: parseFloat(p.selected_by_percent || '0') }
     })
     .sort((a, b) => b.score - a.score)
@@ -71,7 +74,14 @@ export default function CaptainTab({ state }: Props) {
               <div className="flex flex-col gap-1.5">
                 <StatRow label="Form"         value={parseFloat(p.form || '0').toFixed(1)} />
                 <StatRow label="Next fixture" value={`${opp} (${ha})`} />
-                <StatRow label="FDR"          value={String(diff)} />
+                <StatRow
+                  label={dynamic ? 'dFDR' : 'FDR'}
+                  value={
+                    dynamic && p.nextFix?.dDifficulty != null
+                      ? p.nextFix.dDifficulty.toFixed(1)
+                      : String(diff)
+                  }
+                />
                 <StatRow label="Ownership"    value={`${p.ownership.toFixed(1)}%`} />
                 <StatRow label="xPts (next)"  value={parseFloat(p.ep_next || '0').toFixed(1)} />
               </div>
@@ -91,7 +101,11 @@ export default function CaptainTab({ state }: Props) {
         <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2">Our Take</p>
         <p className="text-sm text-gray-700 leading-relaxed">
           <strong>{top.web_name}</strong> is the standout captain pick this week — playing {topHA} against{' '}
-          <strong>{topOpp}</strong> (FDR {top.nextFix?.difficulty ?? '?'}), with a form of{' '}
+          <strong>{topOpp}</strong>{' '}
+          ({dynamic && top.nextFix?.dDifficulty != null
+            ? `dFDR ${top.nextFix.dDifficulty.toFixed(1)}`
+            : `FDR ${top.nextFix?.difficulty ?? '?'}`}),
+          with a form of{' '}
           <strong>{parseFloat(top.form || '0').toFixed(1)}</strong> and projected{' '}
           <strong>{parseFloat(top.ep_next || '0').toFixed(1)}</strong> expected points.{' '}
           {ownNote}
