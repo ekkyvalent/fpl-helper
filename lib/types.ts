@@ -51,6 +51,8 @@ export interface FPLFixture {
   team_a: number
   team_h_difficulty: number
   team_a_difficulty: number
+  team_h_score: number | null
+  team_a_score: number | null
   finished: boolean
 }
 

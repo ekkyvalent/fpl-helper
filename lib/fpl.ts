@@ -70,30 +70,82 @@ export function buildSquad(
 }
 
 /**
- * Compute dynamic FDR (1–5) from FPL's own weekly-updated team strength ratings.
- * Uses opponent's defensive strength split by home/away venue.
- * Stronger defence = higher dFDR = harder fixture.
+ * Build a map of team_id → avg goals conceded per game over their last N fixtures.
+ * Uses actual match scores from completed fixtures — captures genuine recent form.
+ */
+export function buildRollingConcededMap(
+  fixtures: FPLFixture[],
+  lastN = 6
+): Record<number, number> {
+  // Sort completed fixtures newest-first so we grab the most recent N easily
+  const completed = fixtures
+    .filter((f) => f.finished && f.team_h_score != null && f.team_a_score != null)
+    .sort((a, b) => (b.event ?? 0) - (a.event ?? 0))
+
+  const concededLists: Record<number, number[]> = {}
+
+  for (const f of completed) {
+    if (!concededLists[f.team_h]) concededLists[f.team_h] = []
+    if (!concededLists[f.team_a]) concededLists[f.team_a] = []
+
+    // Home team conceded = away score; away team conceded = home score
+    if (concededLists[f.team_h].length < lastN) {
+      concededLists[f.team_h].push(f.team_a_score!)
+    }
+    if (concededLists[f.team_a].length < lastN) {
+      concededLists[f.team_a].push(f.team_h_score!)
+    }
+  }
+
+  const result: Record<number, number> = {}
+  for (const [teamId, goals] of Object.entries(concededLists)) {
+    result[Number(teamId)] = goals.reduce((a, b) => a + b, 0) / goals.length
+  }
+  return result
+}
+
+/**
+ * Compute blended dynamic FDR (1–5).
+ *
+ * 40% — FPL static strength ratings (slow-moving, season-long quality signal)
+ * 60% — Rolling goals conceded last 6 games (recent form, captures slumps/streaks)
+ *
+ * More goals conceded by opponent = easier fixture = lower dFDR.
+ * Stronger static defence = harder fixture = higher dFDR.
  */
 function computeDynamicFdrFromStrength(
   opponent: FPLTeam,
-  isHome: boolean,      // true = MY team plays at home (opponent plays away)
-  allTeams: FPLTeam[]
+  isHome: boolean,
+  allTeams: FPLTeam[],
+  rollingConceded: Record<number, number>
 ): number {
-  // Opponent is playing away when I'm home → use their away defensive strength
-  // Opponent is playing at home when I'm away → use their home defensive strength
+  // ── Component 1: Static strength (40%) ───────────────────
+  // Opponent plays away when I'm home → use their away defensive strength
   const oppStr = isHome
     ? opponent.strength_defence_away
     : opponent.strength_defence_home
-
   const allStr = allTeams.map((t) =>
     isHome ? t.strength_defence_away : t.strength_defence_home
   )
-  const min = Math.min(...allStr)
-  const max = Math.max(...allStr)
+  const sMin = Math.min(...allStr)
+  const sMax = Math.max(...allStr)
+  const staticNorm = sMax === sMin ? 0.5 : (oppStr - sMin) / (sMax - sMin)
+  const staticFdr  = 1 + 4 * staticNorm   // 1 (weak defence) → 5 (strong defence)
 
-  if (max === min) return 3  // fallback: all teams equal
-  const normalised = (oppStr - min) / (max - min)
-  return parseFloat((1 + 4 * normalised).toFixed(2))
+  // ── Component 2: Rolling conceded (60%) ──────────────────
+  const leagueAvgConceded = 1.2   // sensible Premier League fallback
+  const avgConceded = rollingConceded[opponent.id] ?? leagueAvgConceded
+
+  const allConceded = Object.values(rollingConceded)
+  const cMin = Math.min(...allConceded, 0)
+  const cMax = Math.max(...allConceded, 2)
+  // More conceded = weaker defence = lower dFDR, so invert the normalisation
+  const rollingNorm = cMax === cMin ? 0.5 : (avgConceded - cMin) / (cMax - cMin)
+  const rollingFdr  = 1 + 4 * (1 - rollingNorm)  // 1 (leaky) → 5 (watertight)
+
+  // ── Blend ────────────────────────────────────────────────
+  const blended = 0.4 * staticFdr + 0.6 * rollingFdr
+  return parseFloat(blended.toFixed(2))
 }
 
 export function buildAppState(
@@ -110,14 +162,15 @@ export function buildAppState(
   const startGW = nextEv ? nextEv.id : currentGW
   const nextGWs = [0, 1, 2, 3, 4].map((i) => startGW + i)
 
-  const fixtureMap = buildFixtureMap(fixtures)
+  const fixtureMap     = buildFixtureMap(fixtures)
+  const rollingConceded = buildRollingConcededMap(fixtures)
 
-  // Always inject dDifficulty — uses FPL's own weekly-updated strength ratings
+  // Inject blended dDifficulty: 40% FPL strength + 60% rolling goals conceded
   for (const fixes of Object.values(fixtureMap)) {
     for (const fix of fixes) {
       const opp = teamMap[fix.opponent]
       if (opp) {
-        fix.dDifficulty = computeDynamicFdrFromStrength(opp, fix.is_home, allTeams)
+        fix.dDifficulty = computeDynamicFdrFromStrength(opp, fix.is_home, allTeams, rollingConceded)
       }
     }
   }
