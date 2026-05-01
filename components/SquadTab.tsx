@@ -16,6 +16,8 @@ import {
 
 interface Props {
   state: AppState
+  previewSquad?: SquadPlayer[]   // chip squad pushed from ChipTab
+  previewLabel?: string          // e.g. '🎯 Free Hit' | '🃏 Wildcard'
 }
 
 // ── T-Shirt SVG ───────────────────────────────────────────────
@@ -167,8 +169,9 @@ function positionPlayers(players: SquadPlayer[]) {
 }
 
 // ── Main ──────────────────────────────────────────────────────
-export default function SquadTab({ state }: Props) {
+export default function SquadTab({ state, previewSquad, previewLabel }: Props) {
   const [mode, setMode] = useState<'current' | 'recommended'>('current')
+  const isChipPreview = !!previewSquad
 
   // GK always first in bench
   const sortBench = (bench: typeof state.squad) => [
@@ -184,6 +187,15 @@ export default function SquadTab({ state }: Props) {
   const recStarting = recommendStartingXI(state.squad)
   const recBench    = sortBench(state.squad.filter((p) => !recStarting.find((r) => r.id === p.id)))
 
+  // Chip preview XI
+  const chipStarting = previewSquad ? recommendStartingXI(previewSquad) : []
+  const chipBench    = previewSquad
+    ? sortBench(previewSquad.filter((p) => !chipStarting.find((r) => r.id === p.id)))
+    : []
+  const chipSorted    = [...chipStarting].sort((a, b) => playerScore(b) - playerScore(a))
+  const chipCaptainId = chipSorted[0]?.id
+  const chipViceId    = chipSorted[1]?.id
+
   // Recommended captain & vice = top 2 scorers in rec XI
   const recSorted    = [...recStarting].sort((a, b) => playerScore(b) - playerScore(a))
   const recCaptainId = recSorted[0]?.id
@@ -194,42 +206,54 @@ export default function SquadTab({ state }: Props) {
   const recIds     = new Set(recStarting.map((p) => p.id))
   const swappedIn  = new Set([...recIds].filter((id) => !currentIds.has(id)))
 
-  const starting  = mode === 'current' ? currentStarting : recStarting
-  const bench     = mode === 'current' ? currentBench    : recBench
+  const starting  = isChipPreview ? chipStarting : (mode === 'current' ? currentStarting : recStarting)
+  const bench     = isChipPreview ? chipBench    : (mode === 'current' ? currentBench    : recBench)
   const formation = detectFormation(starting)
   const positioned = positionPlayers(starting)
 
   return (
     <div>
-      {/* Mode toggle + formation */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Formation</span>
-          <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full border border-green-100">
-            {formation}
+      {/* Chip preview banner OR normal mode toggle */}
+      {isChipPreview ? (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Formation</span>
+            <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full border border-green-100">
+              {formation}
+            </span>
+          </div>
+          <span className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-100">
+            {previewLabel} Preview
           </span>
         </div>
-
-        {/* Toggle */}
-        <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-lg">
-          {(['current', 'recommended'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                mode === m
-                  ? 'bg-white text-green-600 shadow-sm'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {m === 'current' ? 'Current' : '⚡ Next GW'}
-            </button>
-          ))}
+      ) : (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Formation</span>
+            <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full border border-green-100">
+              {formation}
+            </span>
+          </div>
+          <div className="flex gap-0.5 bg-gray-100 p-0.5 rounded-lg">
+            {(['current', 'recommended'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  mode === m
+                    ? 'bg-white text-green-600 shadow-sm'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {m === 'current' ? 'Current' : '⚡ Next GW'}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Recommended mode: show swaps summary */}
-      {mode === 'recommended' && swappedIn.size > 0 && (
+      {!isChipPreview && mode === 'recommended' && swappedIn.size > 0 && (
         <div className="mb-3 bg-yellow-50 border border-yellow-100 rounded-xl px-3 py-2.5 flex flex-col gap-1">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-yellow-700">Suggested changes</p>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -255,9 +279,13 @@ export default function SquadTab({ state }: Props) {
       >
         <Pitch />
         {positioned.map((p) => {
-          const isCaptain = mode === 'current' ? p.pick.is_captain    : p.id === recCaptainId
-          const isVice    = mode === 'current' ? p.pick.is_vice_captain : p.id === recViceId
-          const isSwapped = mode === 'recommended' && swappedIn.has(p.id)
+          const isCaptain = isChipPreview
+            ? p.id === chipCaptainId
+            : mode === 'current' ? p.pick.is_captain : p.id === recCaptainId
+          const isVice = isChipPreview
+            ? p.id === chipViceId
+            : mode === 'current' ? p.pick.is_vice_captain : p.id === recViceId
+          const isSwapped = !isChipPreview && mode === 'recommended' && swappedIn.has(p.id)
           return (
             <div
               key={p.id}
@@ -279,7 +307,9 @@ export default function SquadTab({ state }: Props) {
       {/* Bench */}
       <div className="mt-5 bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
         <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-4">
-          Bench {mode === 'recommended' && <span className="text-yellow-600 normal-case font-semibold">(recommended)</span>}
+          Bench{' '}
+          {isChipPreview && <span className="text-purple-600 normal-case font-semibold">({previewLabel})</span>}
+          {!isChipPreview && mode === 'recommended' && <span className="text-yellow-600 normal-case font-semibold">(recommended)</span>}
         </p>
         <div className="flex gap-2 justify-around">
           {bench.map((p, i) => (
@@ -287,7 +317,7 @@ export default function SquadTab({ state }: Props) {
               key={p.id}
               player={p}
               order={i + 1}
-              dimmed={mode === 'recommended' && !currentBench.find((b) => b.id === p.id)}
+              dimmed={!isChipPreview && mode === 'recommended' && !currentBench.find((b) => b.id === p.id)}
             />
           ))}
         </div>

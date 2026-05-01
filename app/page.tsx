@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import type { AppState } from '@/lib/types'
+import type { AppState, SquadPlayer } from '@/lib/types'
 import { buildAppState } from '@/lib/fpl'
 import SummaryBar from '@/components/SummaryBar'
 import SquadRatingCard from '@/components/SquadRatingCard'
@@ -9,9 +9,10 @@ import SquadTab from '@/components/SquadTab'
 import FixturesTab from '@/components/FixturesTab'
 import TransfersTab from '@/components/TransfersTab'
 import CaptainTab from '@/components/CaptainTab'
+import ChipTab from '@/components/ChipTab'
 
 const STORAGE_KEY = 'fpl_team_id'
-const RIGHT_TABS = ['Fixtures', 'Transfers', 'Captain'] as const
+const RIGHT_TABS = ['Fixtures', 'Transfers', 'Captain', 'Chip'] as const
 type RightTab = (typeof RIGHT_TABS)[number]
 
 // ── Input Screen ─────────────────────────────────────────────
@@ -102,14 +103,25 @@ function LoadingScreen({ msg }: { msg: string }) {
 
 // ── App Screen ────────────────────────────────────────────────
 function AppScreen({ state }: { state: AppState }) {
-  const [activeTab, setActiveTab] = useState<RightTab>('Fixtures')
+  const [activeTab, setActiveTab]   = useState<RightTab>('Fixtures')
+  const [chipPreview, setChipPreview] = useState<{ squad: SquadPlayer[]; label: string } | null>(null)
+
+  function handleTabChange(tab: RightTab) {
+    setActiveTab(tab)
+    // Clear chip preview when leaving the Chip tab
+    if (tab !== 'Chip') setChipPreview(null)
+  }
 
   return (
     <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100svh - 56px)' }}>
 
       {/* ── LEFT: Pitch ── */}
       <div className="w-[400px] shrink-0 border-r border-gray-100 bg-[#f0f5f0] overflow-y-auto p-4 flex flex-col gap-3">
-        <SquadTab state={state} />
+        <SquadTab
+          state={state}
+          previewSquad={chipPreview?.squad}
+          previewLabel={chipPreview?.label}
+        />
       </div>
 
       {/* ── RIGHT: Info + Tabs ── */}
@@ -122,14 +134,14 @@ function AppScreen({ state }: { state: AppState }) {
             {RIGHT_TABS.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${
                   activeTab === tab
                     ? 'bg-white text-green-600 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab}
+                {tab === 'Chip' ? '🃏 Chip' : tab}
               </button>
             ))}
           </div>
@@ -137,6 +149,12 @@ function AppScreen({ state }: { state: AppState }) {
           {activeTab === 'Fixtures'  && <FixturesTab  state={state} />}
           {activeTab === 'Transfers' && <TransfersTab state={state} />}
           {activeTab === 'Captain'   && <CaptainTab   state={state} />}
+          {activeTab === 'Chip'      && (
+            <ChipTab
+              state={state}
+              onSquadChange={(squad, label) => setChipPreview({ squad, label })}
+            />
+          )}
         </div>
       </div>
 

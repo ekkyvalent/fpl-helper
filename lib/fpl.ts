@@ -478,6 +478,98 @@ export function squadPowerStats(squad: SquadPlayer[]): {
   return { squadPower, xiPower, xiGWScore }
 }
 
+// ── Chip Squad (Wildcard / Free Hit) ─────────────────────────
+
+/**
+ * Enrich ALL bootstrap players into SquadPlayer shape so scoring
+ * functions (playerPowerRating, playerGWScore) can run on them.
+ * Excludes permanently unavailable players (status 'u' or 'n' with 0 minutes).
+ */
+export function enrichAllPlayers(state: AppState): SquadPlayer[] {
+  const { bootstrap, fixtureMap, teamMap, nextGWs } = state
+  return bootstrap.elements
+    .filter((el) => el.status !== 'u' || el.minutes > 0)
+    .map((el) => {
+      const fix = (fixtureMap[el.team] ?? [])
+        .filter((f) => nextGWs.includes(f.gw))
+        .slice(0, 5)
+      const avgFdr3  = fix.slice(0, 3).reduce((s, f) => s + f.difficulty, 0) / Math.max(fix.slice(0, 3).length, 1) || 5
+      const avgDFdr3 = fix.slice(0, 3).reduce((s, f) => s + (f.dDifficulty ?? f.difficulty), 0) / Math.max(fix.slice(0, 3).length, 1) || 5
+      return {
+        ...el,
+        pick:      { element: el.id, position: 0, is_captain: false, is_vice_captain: false, multiplier: 1 },
+        teamShort: teamMap[el.team]?.short_name ?? '?',
+        teamFull:  teamMap[el.team]?.name ?? '?',
+        fixtures:  fix,
+        avgFdr3,
+        avgDFdr3,
+      }
+    })
+}
+
+/**
+ * Build an optimal 15-player chip squad within budget.
+ *
+ * Free Hit  → ranked by GW Score (optimise for this week only)
+ * Wildcard  → ranked by Power Rating × avg fixture ease next 3 GWs (long-term quality)
+ *
+ * Constraints: 2 GK / 5 DEF / 5 MID / 3 FWD, max 3 per club, within budget.
+ * Uses a budget-safe greedy: when considering each player, ensure enough budget
+ * remains to fill all still-empty slots with their cheapest alternatives.
+ */
+export function buildChipSquad(
+  state: AppState,
+  budget: number,          // raw FPL units (tenths of £m), e.g. 1000 = £100m
+  mode: 'wildcard' | 'freehit'
+): SquadPlayer[] {
+  const all = enrichAllPlayers(state)
+
+  const scorePlayer = (p: SquadPlayer): number =>
+    mode === 'freehit'
+      ? playerGWScore(p)
+      : playerPowerRating(p) * ((6 - p.avgDFdr3) / 5)
+
+  const scored = all
+    .map((p) => ({ p, score: scorePlayer(p) }))
+    .sort((a, b) => b.score - a.score)
+
+  const slots:  Record<number, number> = { 1: 2, 2: 5, 3: 5, 4: 3 }
+  const filled: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
+  const clubCount: Record<number, number> = {}
+  const chosen: SquadPlayer[] = []
+  let spent = 0
+
+  // Cheapest available player per position (budget safety floor)
+  const minCost: Record<number, number> = {}
+  for (const type of [1, 2, 3, 4]) {
+    const prices = all.filter((p) => p.element_type === type).map((p) => p.now_cost)
+    minCost[type] = Math.min(...prices, 40)
+  }
+
+  for (const { p } of scored) {
+    if (chosen.length >= 15) break
+
+    const type = p.element_type
+    if (filled[type] >= slots[type]) continue
+    if ((clubCount[p.team] ?? 0) >= 3) continue
+
+    // Compute minimum cost to fill all remaining slots AFTER this pick
+    let minAfter = 0
+    for (const t of [1, 2, 3, 4]) {
+      const needed = slots[t] - filled[t] - (t === type ? 1 : 0)
+      if (needed > 0) minAfter += minCost[t] * needed
+    }
+    if (budget - spent - p.now_cost < minAfter) continue
+
+    chosen.push(p)
+    filled[type]++
+    clubCount[p.team] = (clubCount[p.team] ?? 0) + 1
+    spent += p.now_cost
+  }
+
+  return chosen
+}
+
 export function fdrColor(diff: number): string {
   if (diff <= 2) return 'bg-green-100 text-green-800'
   if (diff < 3.5) return 'bg-yellow-100 text-yellow-800'
