@@ -153,7 +153,7 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
         <SummaryBar state={state} />
         <SquadRatingCard state={state} />
 
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-4">
             {RIGHT_TABS.map((tab) => (
               <button

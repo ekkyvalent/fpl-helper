@@ -28,19 +28,19 @@ function ScoreBlock({
 }) {
   return (
     <div
-      className="flex-1 rounded-2xl border px-5 py-4 flex flex-col gap-1"
+      className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-0.5"
       style={{ background: accent.bg, borderColor: accent.border }}
     >
       <span
-        className="text-5xl font-extrabold leading-none tracking-tight"
+        className="text-4xl font-extrabold leading-none tracking-tight"
         style={{ color: accent.text }}
       >
         {value}
       </span>
-      <p className="text-sm font-bold text-gray-800 mt-1">{label}</p>
-      <p className="text-xs text-gray-500 leading-snug">{sublabel}</p>
+      <p className="text-[13px] font-bold text-gray-800 mt-1.5">{label}</p>
+      <p className="text-[11px] text-gray-500 leading-snug">{sublabel}</p>
       {/* progress bar */}
-      <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden mt-2">
+      <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden mt-2">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${value}%`, background: accent.text }}
@@ -59,10 +59,10 @@ export default function SquadRatingCard({ state }: Props) {
   const gwColor   = scoreColor(xiGWScore)
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-xs">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2.5">
         <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Your Squad</p>
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
           <span className="text-xs font-semibold text-gray-500">
