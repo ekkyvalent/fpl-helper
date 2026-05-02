@@ -12,6 +12,9 @@ import {
   fdrInlineStyle,
   recommendStartingXI,
   playerScore,
+  playerGWScore,
+  getNextGWFixtures,
+  gwType,
 } from '@/lib/fpl'
 
 interface Props {
@@ -57,6 +60,14 @@ function FixturePill({ fix, teamMap }: { fix: UpcomingFixture; teamMap: AppState
   )
 }
 
+// ── GW score colour (returns inline hex) ─────────────────────
+function gwScoreColor(score: number): string {
+  if (score >= 70) return '#4ade80'   // green-400
+  if (score >= 55) return '#a3e635'   // lime-400
+  if (score >= 40) return '#fbbf24'   // amber-400
+  return '#f87171'                    // red-400
+}
+
 // ── Player on pitch ───────────────────────────────────────────
 function PitchPlayer({
   player,
@@ -71,8 +82,11 @@ function PitchPlayer({
   isVice: boolean
   isSwapped?: boolean   // highlighted if different from current pick
 }) {
-  const colors  = TEAM_COLORS[player.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
-  const nextFix = player.fixtures[0]
+  const colors    = TEAM_COLORS[player.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
+  const gwScore   = playerGWScore(player)
+  const scoreColor = gwScoreColor(gwScore)
+  const pGWType   = gwType(player)
+  const nextFixes = getNextGWFixtures(player)
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -91,11 +105,35 @@ function PitchPlayer({
       </div>
 
       <div className="bg-black/65 backdrop-blur-sm rounded-md px-2 py-1 text-center max-w-[84px] flex flex-col items-center gap-0.5">
+        {/* GW score + DGW/BGW badge */}
+        <div className="flex items-center gap-1 leading-none">
+          <span className="text-[11px] font-extrabold leading-none" style={{ color: scoreColor }}>
+            {gwScore}
+          </span>
+          {pGWType === 'dgw' && (
+            <span className="text-[7px] font-extrabold px-1 py-0.5 rounded leading-none" style={{ background: '#7c3aed22', color: '#c4b5fd' }}>
+              DGW
+            </span>
+          )}
+          {pGWType === 'bgw' && (
+            <span className="text-[7px] font-extrabold leading-none" style={{ color: '#9ca3af' }}>
+              BGW
+            </span>
+          )}
+        </div>
+
         <p className="text-white text-[11px] font-bold leading-none truncate w-full text-center">{player.web_name}</p>
-        {nextFix
-          ? <FixturePill fix={nextFix} teamMap={teamMap} />
-          : <p className="text-gray-400 text-[9px] leading-none">No fix</p>
+
+        {/* Fixture pill(s) */}
+        {nextFixes.length === 0
+          ? <p className="text-gray-400 text-[9px] leading-none">No fix</p>
+          : <div className="flex flex-col items-center gap-0.5">
+              {nextFixes.map((fix, i) => (
+                <FixturePill key={i} fix={fix} teamMap={teamMap} />
+              ))}
+            </div>
         }
+
         {player.chance_of_playing_next_round != null && player.chance_of_playing_next_round < 100 && (
           <span className="text-[8px] font-bold leading-none" style={{ color: player.chance_of_playing_next_round <= 25 ? '#ef4444' : '#f59e0b' }}>
             {player.chance_of_playing_next_round}%
