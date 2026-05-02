@@ -1,5 +1,5 @@
 import type { AppState, UpcomingFixture } from '@/lib/types'
-import { posLabel, fdrColor, fmt, playerPowerRating, playerGWScore, powerColor } from '@/lib/fpl'
+import { posLabel, fdrColor, fmt, playerPowerRating, playerGWScore, powerColor, getNextGWFixtures, gwType } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -13,18 +13,10 @@ function FixChip({
   teamMap,
   useDynamic,
 }: {
-  fix: UpcomingFixture | undefined
+  fix: UpcomingFixture
   teamMap: AppState['teamMap']
   useDynamic: boolean
 }) {
-  if (!fix) {
-    return (
-      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[58px] text-center">
-        BGW
-      </span>
-    )
-  }
-
   const opp  = teamMap[fix.opponent]?.short_name ?? '?'
   const ha   = fix.is_home ? 'H' : 'A'
   const diff = (useDynamic && fix.dDifficulty != null) ? fix.dDifficulty : fix.difficulty
@@ -38,6 +30,32 @@ function FixChip({
         <span className="text-[9px] opacity-75 font-semibold">{fix.dDifficulty.toFixed(1)}</span>
       )}
     </span>
+  )
+}
+
+/** Shows one or two chips for a GW — handles BGW (none) and DGW (two) */
+function GWCell({
+  fixes,
+  teamMap,
+  useDynamic,
+}: {
+  fixes: UpcomingFixture[]
+  teamMap: AppState['teamMap']
+  useDynamic: boolean
+}) {
+  if (fixes.length === 0) {
+    return (
+      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-gray-100 text-gray-400 min-w-[58px] text-center">
+        BGW
+      </span>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-0.5 items-center">
+      {fixes.map((fix, i) => (
+        <FixChip key={i} fix={fix} teamMap={teamMap} useDynamic={useDynamic} />
+      ))}
+    </div>
   )
 }
 
@@ -120,7 +138,15 @@ export default function FixturesTab({ state }: Props) {
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <div>
-                    <p className="font-bold text-gray-900 text-[13px]">{p.web_name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-gray-900 text-[13px]">{p.web_name}</p>
+                      {gwType(p) === 'dgw' && (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">DGW</span>
+                      )}
+                      {gwType(p) === 'bgw' && (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">BGW</span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-gray-400">
                       {p.teamShort} · {posLabel(p.element_type)}
                     </p>
@@ -182,8 +208,8 @@ export default function FixturesTab({ state }: Props) {
               {/* GW fixture chips */}
               {nextGWs.map((gw) => (
                 <td key={gw} className="px-2 py-3 text-center">
-                  <FixChip
-                    fix={p.fixtures.find((f) => f.gw === gw)}
+                  <GWCell
+                    fixes={p.fixtures.filter((f) => f.gw === gw)}
                     teamMap={teamMap}
                     useDynamic={dynamic}
                   />
@@ -207,7 +233,15 @@ export default function FixturesTab({ state }: Props) {
               <td className="px-4 py-2.5">
                 <div className="flex items-center gap-2">
                   <div>
-                    <p className="font-bold text-gray-700 text-[13px]">{p.web_name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-gray-700 text-[13px]">{p.web_name}</p>
+                      {gwType(p) === 'dgw' && (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">DGW</span>
+                      )}
+                      {gwType(p) === 'bgw' && (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">BGW</span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-gray-400">{p.teamShort} · {posLabel(p.element_type)}</p>
                   </div>
                   {p.status !== 'a' && (
@@ -253,8 +287,8 @@ export default function FixturesTab({ state }: Props) {
               </td>
               {nextGWs.map((gw) => (
                 <td key={gw} className="px-2 py-2.5 text-center">
-                  <FixChip
-                    fix={p.fixtures.find((f) => f.gw === gw)}
+                  <GWCell
+                    fixes={p.fixtures.filter((f) => f.gw === gw)}
                     teamMap={teamMap}
                     useDynamic={dynamic}
                   />

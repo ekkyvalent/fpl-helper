@@ -12,6 +12,22 @@ import type {
 export const posLabel = (type: number) =>
   ['', 'GK', 'DEF', 'MID', 'FWD'][type] ?? '?'
 
+/** All fixtures for a player in their very next GW (0 = BGW, 2 = DGW) */
+export function getNextGWFixtures(p: SquadPlayer): UpcomingFixture[] {
+  if (!p.fixtures[0]) return []
+  const nextGW = p.fixtures[0].gw
+  return p.fixtures.filter((f) => f.gw === nextGW)
+}
+
+/** Whether a player has a Double, Single, or Blank gameweek next */
+export type GWType = 'dgw' | 'sgw' | 'bgw'
+export function gwType(p: SquadPlayer): GWType {
+  const count = getNextGWFixtures(p).length
+  if (count === 0) return 'bgw'
+  if (count >= 2)  return 'dgw'
+  return 'sgw'
+}
+
 export const fmt = (cost: number) => `£${(cost / 10).toFixed(1)}m`
 
 const avg = (nums: number[]) =>
@@ -281,9 +297,17 @@ export function calculateSquadRating(state: AppState): {
  * Cold-start fallback: < 3 games of minutes → use points_per_game instead.
  */
 export function playerScore(p: SquadPlayer): number {
-  // ── Fixture ease (most important) ───────────────────────────
-  const dFdr      = p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 3
-  const fixtureEase = (6 - dFdr) / 5        // 1.0 = easiest (dFDR 1), 0.2 = hardest (dFDR 5)
+  // ── Fixture ease — DGW/BGW aware ────────────────────────────
+  const nextFixes = getNextGWFixtures(p)
+  let fixtureEase: number
+  if (nextFixes.length === 0) {
+    fixtureEase = 0.08   // BGW: nearly impossible to score
+  } else {
+    const eases = nextFixes.map((f) => (6 - (f.dDifficulty ?? f.difficulty)) / 5)
+    fixtureEase = eases.length === 1
+      ? eases[0]
+      : eases.sort((a, b) => b - a)[0] + eases.sort((a, b) => b - a)[1] * 0.85  // DGW
+  }
 
   // ── Availability (hard gate) ──────────────────────────────
   const avail =
@@ -448,12 +472,25 @@ export function playerPowerRating(p: SquadPlayer): number {
  * dFDR 5 (hardest) = ×0.75. BGW (no fixture) = ×0.5.
  */
 export function playerGWScore(p: SquadPlayer): number {
-  const power = playerPowerRating(p)
-  if (!p.fixtures[0]) return Math.round(power * 0.5)   // blank gameweek
-  const dFdr   = p.fixtures[0].dDifficulty ?? p.fixtures[0].difficulty
-  // Soft multiplier centred at dFDR 3: range 0.75 – 1.25
-  const fixMult = 0.75 + ((5 - dFdr) / 4) * 0.5
-  return Math.round(Math.min(99, Math.max(1, power * fixMult)))
+  const power    = playerPowerRating(p)
+  const nextFixes = getNextGWFixtures(p)
+
+  if (nextFixes.length === 0) {
+    // BGW: player doesn't play — score near zero
+    return Math.max(1, Math.round(power * 0.08))
+  }
+
+  // Multiplier per fixture: dFDR 1 = ×1.25, dFDR 3 = ×1.0, dFDR 5 = ×0.75
+  const mults = nextFixes.map((f) => {
+    const dFdr = f.dDifficulty ?? f.difficulty
+    return 0.75 + ((5 - dFdr) / 4) * 0.5
+  })
+
+  // DGW: full value for better fixture + 85% for second (diminishing returns on CS etc)
+  const sorted     = [...mults].sort((a, b) => b - a)
+  const totalMult  = sorted[0] + (sorted[1] ?? 0) * 0.85
+
+  return Math.round(Math.min(99, Math.max(1, power * totalMult)))
 }
 
 /** Colour class for a power / GW score badge */

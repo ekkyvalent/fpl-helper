@@ -12,6 +12,8 @@ import {
   powerColor,
   posLabel,
   fmt,
+  getNextGWFixtures,
+  gwType,
 } from '@/lib/fpl'
 
 interface Props {
@@ -33,21 +35,27 @@ function SquadRow({ p, isBench, mode, teamMap }: {
   mode: 'wildcard' | 'freehit'
   teamMap: AppState['teamMap']
 }) {
-  const score   = mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
-  const nextFix = p.fixtures[0]
-  const opp     = nextFix ? (teamMap[nextFix.opponent]?.short_name ?? '?') : '—'
-  const ha      = nextFix?.is_home ? 'H' : 'A'
+  const score    = mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
+  const pFixes   = getNextGWFixtures(p)
+  const pGWType  = gwType(p)
+  const fixLabel = pFixes.length === 0
+    ? 'BGW'
+    : pFixes.map((f) => `${teamMap[f.opponent]?.short_name ?? '?'} ${f.is_home ? 'H' : 'A'}`).join('+')
 
   return (
     <div className={`flex items-center gap-2.5 px-4 py-2 ${isBench ? 'opacity-55' : ''}`}>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-bold text-gray-900 truncate">{p.web_name}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-[12px] font-bold text-gray-900 truncate">{p.web_name}</p>
+          {pGWType === 'dgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-100 text-purple-700 shrink-0">DGW</span>}
+          {pGWType === 'bgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">BGW</span>}
+        </div>
         <p className="text-[10px] text-gray-400">{p.teamShort} · {posLabel(p.element_type)}</p>
       </div>
       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${powerColor(score)}`}>
         {mode === 'freehit' ? 'GW' : 'PWR'} {score}
       </span>
-      <span className="text-[10px] text-gray-400 w-12 text-right">{nextFix ? `${opp} ${ha}` : 'BGW'}</span>
+      <span className="text-[10px] text-gray-400 text-right" style={{ minWidth: '4rem' }}>{fixLabel}</span>
       <span className="text-[11px] font-semibold text-gray-600 w-10 text-right">{fmt(p.now_cost)}</span>
     </div>
   )
@@ -254,23 +262,29 @@ export default function ChipTab({ state, onSquadChange }: Props) {
                     </div>
 
                     {players.map((p, i) => {
-                      const inChip  = chipSquad.some((c) => c.id === p.id)
-                      const nextFix = p.fixtures[0]
-                      const opp     = nextFix ? (state.teamMap[nextFix.opponent]?.short_name ?? '?') : '—'
-                      const ha      = nextFix?.is_home ? 'H' : 'A'
-                      const pwr     = playerPowerRating(p)
-                      const gw      = playerGWScore(p)
+                      const inChip   = chipSquad.some((c) => c.id === p.id)
+                      const pFixes   = getNextGWFixtures(p)
+                      const pGWType  = gwType(p)
+                      const fixLabel = pFixes.length === 0
+                        ? 'BGW'
+                        : pFixes.map((f) => `${state.teamMap[f.opponent]?.short_name ?? '?'} ${f.is_home ? 'H' : 'A'}`).join('+')
+                      const pwr = playerPowerRating(p)
+                      const gw  = playerGWScore(p)
 
                       return (
                         <div
                           key={p.id}
-                          className={`grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3rem_3rem] gap-1 items-center px-3 py-2 border-b border-gray-50 last:border-none ${
+                          className={`grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3.5rem_3rem] gap-1 items-center px-3 py-2 border-b border-gray-50 last:border-none ${
                             inChip ? 'bg-green-50' : 'hover:bg-gray-50/50'
                           }`}
                         >
                           <span className="text-[10px] text-gray-400">{i + 1}</span>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
+                            <div className="flex items-center gap-1">
+                              <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
+                              {pGWType === 'dgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-100 text-purple-700 shrink-0">DGW</span>}
+                              {pGWType === 'bgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">BGW</span>}
+                            </div>
                             <p className="text-[9px] text-gray-400">{p.teamShort}</p>
                           </div>
                           <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
@@ -280,8 +294,8 @@ export default function ChipTab({ state, onSquadChange }: Props) {
                           <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(gw)}`}>
                             {gw}
                           </span>
-                          <span className="text-[10px] text-gray-500 text-center">
-                            {nextFix ? `${opp} ${ha}` : 'BGW'}
+                          <span className="text-[10px] text-gray-500 text-center leading-tight">
+                            {fixLabel}
                           </span>
                           <span className="text-center">
                             {inChip && (
