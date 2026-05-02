@@ -1,13 +1,23 @@
 # FPL Helper
 
-A smart Fantasy Premier League assistant that goes beyond the official FPL app. Get fixture difficulty ratings based on actual recent form, optimal starting XI recommendations, transfer suggestions, and captain picks — all from your existing FPL team ID.
+A smart Fantasy Premier League assistant that goes beyond the official FPL app. Get fixture difficulty ratings based on actual recent form, player power ratings, optimal chip squad recommendations, and captain picks — all from your existing FPL team ID, with no API keys required.
 
 ---
 
 ## Features
 
-### Squad View
-Visual football pitch layout showing your current 15-player squad in formation. Switch between your current XI and an AI-recommended starting XI with a single toggle. Swapped players are highlighted with a yellow ring and a summary of suggested changes is shown above the pitch.
+### Squad View (Pitch)
+Visual football pitch layout showing your current 15-player squad in formation. Each player card on the pitch shows:
+
+- **Actual GW points** (colour-coded: green = haul, amber = ok, grey = blank) — updates live during a gameweek and applies the captain ×2 multiplier automatically
+- **Fixture pill(s)** — shows the current GW opponent while the gameweek is live; switches to the next GW only after all matches are complete. DGW players show both opponents stacked
+- **DGW badge** when a player has a Double Gameweek
+- **Injury/availability %** for doubts
+
+Toggle between your current XI, the recommended next-GW XI, or a chip squad preview pushed from the Chip tab. Recommended mode highlights swapped players with a yellow ring and shows a change summary above the pitch.
+
+### Transfer Deadline Banner
+A persistent banner below the header shows the upcoming GW transfer deadline with a live countdown. Turns amber with a ⚠️ warning when under 24 hours away, and disappears automatically once the deadline has passed.
 
 ### Smart FDR (Dynamic Fixture Difficulty Rating)
 The standard FPL fixture difficulty ratings are static and rarely updated. FPL Helper computes a blended **dFDR** score using two signals:
@@ -17,31 +27,49 @@ The standard FPL fixture difficulty ratings are static and rarely updated. FPL H
 
 The result is a 1–5 decimal score that reflects what's actually happening right now, not just pre-season reputation.
 
-### Fixtures Tab
-Table view of all 15 squad players (starters + bench) showing the next 5 gameweeks for each player. Columns include price, form, ownership %, points per game, and colour-coded fixture chips using the dFDR scale. A legend at the bottom explains the colour bands.
+### Player Power Rating & GW Score
+Two complementary scores (1–99) are computed for every player:
 
-### Recommended XI
-An optimised starting XI picker that uses a position-aware scoring formula:
+**Power Rating** — intrinsic quality, fixture-agnostic. Answers "how good is this player based on their season output?" Normalised against realistic PL ceilings per position. Players with under 3 games worth of minutes blend toward 40 (unknown) to avoid cold-start noise.
 
 | Position | Scoring basis |
 |---|---|
-| GK | Saves per 90 + clean sheet rate × 6 |
-| DEF | Clean sheet rate × 6 + xGI/90 × 6 |
-| MID | xG/90 × 5 + xA/90 × 3 + clean sheet rate × 1 |
-| FWD | xG/90 × 6 + xA/90 × 2.5 |
+| GK | Saves/90 × 35 + CS rate × 35 + PPG × 30 |
+| DEF | CS rate × 40 + xGI/90 × 30 + PPG × 30 |
+| MID | xG/90 × 25 + xA/90 × 25 + PPG × 35 + form × 15 |
+| FWD | xG/90 × 40 + xA/90 × 20 + PPG × 30 + form × 10 |
 
-Each player's attacking contribution is multiplied by **fixture ease** `(6 - dFDR) / 5`, an **availability gate** (1.0 / 0.75 / 0.40 / 0.10 based on injury status), and a **form nudge** (±20% max) so recent form is a minor modifier rather than the dominant factor.
+**GW Score** — Power Rating adjusted for the upcoming fixture(s). Fixture multiplier ranges from ×0.75 (dFDR 5, hardest) to ×1.25 (dFDR 1, easiest).
 
-Formation rules are respected: 1 GK, min 3 DEF / 2 MID / 1 FWD, max 5 DEF / 5 MID / 3 FWD.
-
-### Transfers Tab
-Identifies sell candidates from your starting XI based on tough upcoming fixtures (avg dFDR ≥ 3.7), poor form (< 2.0), or injury doubt (< 75% chance of playing). For each candidate, it surfaces affordable replacements at the same position who are fully fit and have easier upcoming fixtures.
-
-### Captain Tab
-Ranks your starting XI players for captaincy using the same scoring formula as the recommended XI, with a 10% home advantage bonus. Displays the top 3 picks with their key stats, flags differentials (< 15% ownership), and provides a short written summary of the top recommendation.
+**Double & Blank Gameweek handling:** DGW players combine both fixture multipliers (full value for the better fixture + 85% for the second, accounting for diminishing returns on clean sheet bonuses). BGW players score near-zero since they don't play. Both `playerScore` (used for XI selection) and `playerGWScore` apply the same logic.
 
 ### Squad Rating
-An overall squad health score (1–100) shown as an arc gauge, broken down into form (40 pts), fixture ease (35 pts), and availability (25 pts).
+Two large colour-coded metric blocks replace the old three-metric layout:
+
+- **Team Quality** — average Power Rating of the starting XI. Answers "how good is this squad, ignoring this week's fixtures?"
+- **This GW** — Team Quality adjusted for this week's fixtures. Shows how well set-up the squad is right now.
+
+Supporting stats (form average, avg dFDR, availability count) shown in the header row. A delta hint appears when the two scores diverge by 3+ points.
+
+### Fixtures Tab
+Table view of all 15 squad players (starters + bench) showing the next 5 gameweeks. Columns include price, form, ownership %, PPG, Power Rating badge, GW Score badge, and colour-coded fixture chips. **DGW columns show stacked chips for both opponents.** BGW columns show a grey "BGW" chip. Player names carry DGW/BGW pill badges for quick scanning.
+
+### Transfers Tab
+Identifies sell candidates from your starting XI based on tough upcoming fixtures (avg dFDR ≥ 3.7), poor form (< 2.0), or injury doubt (< 75% chance of playing). For each candidate it surfaces affordable replacements at the same position who are fully fit and have easier upcoming fixtures.
+
+### Captain Tab
+Ranks your starting XI for captaincy using the player scoring formula with a 10% home advantage bonus. DGW players are correctly boosted by the double-fixture multiplier so they naturally float to the top when they have two games. The top 3 cards show all GW fixtures (both opponents for DGW), a DGW/BGW badge, Power Rating + GW Score badges, and a flag for differentials (< 15% ownership). The "Our Take" narrative calls out Double Gameweeks explicitly.
+
+### Chip Tab — Wildcard & Free Hit
+Recommends an optimal 15-player squad for your chip usage within your current budget (squad value + bank).
+
+**Free Hit** mode ranks players by GW Score — pure short-term output optimised for the current gameweek. DGW players with two easy fixtures rank highest.
+
+**Wildcard** mode ranks by `Power Rating × fixture ease over next 3 GWs` — builds long-term quality rather than chasing a single week.
+
+Both modes enforce: 2 GK / 5 DEF / 5 MID / 3 FWD slots, max 3 players per club, and a budget safety floor (checks the minimum cost to fill remaining slots before each pick so you're never stranded short of a position).
+
+The recommended squad is previewed on the pitch in the Squad tab (pushed via chip preview mode), showing the chip captain/vice and both fixture opponents for DGW players. The Chip tab also includes a full player pool ranked by position so you can explore alternatives.
 
 ---
 
@@ -55,9 +83,9 @@ browser → Next.js app → /api/fpl/* proxy → api.fantasy.premierleague.com
 
 A server-side proxy route handles all FPL API calls to avoid CORS issues. The app fetches four endpoints on load:
 
-1. `/bootstrap-static` — all player data, team data, gameweek events
+1. `/bootstrap-static` — all player data, team data, gameweek events (including deadline times and `event_points`)
 2. `/entry/{teamId}` — manager info, squad value, bank, rank
-3. `/entry/{teamId}/event/{gw}/picks` — your squad picks for the latest GW
+3. `/entry/{teamId}/event/{gw}/picks` — your squad picks for the latest GW (tried for current GW, falls back up to 2 GWs)
 4. `/fixtures` — full season fixture list including completed match scores
 
 Everything is computed client-side from this data — no database, no backend state.
@@ -96,20 +124,21 @@ Your team ID is saved to `localStorage` so you won't need to enter it again on t
 ```
 fpl-helper/
 ├── app/
-│   ├── page.tsx              # Root page — input, loading, and app screens
+│   ├── page.tsx              # Root page — input, loading, app screens, deadline banner
 │   ├── layout.tsx            # Root layout and global styles
 │   └── api/fpl/[...path]/    # Server-side FPL API proxy
 │
 ├── components/
-│   ├── SquadTab.tsx          # Pitch view + recommended XI toggle
-│   ├── FixturesTab.tsx       # Fixture difficulty table for all 15 players
+│   ├── SquadTab.tsx          # Pitch view — live GW points, DGW pills, chip preview
+│   ├── FixturesTab.tsx       # Fixture difficulty table, DGW/BGW chips
 │   ├── TransfersTab.tsx      # Transfer recommendations
-│   ├── CaptainTab.tsx        # Captain picks + narrative
-│   ├── SummaryBar.tsx        # Manager info, squad value, rank, GW points
-│   └── SquadRatingCard.tsx   # Arc gauge squad health score
+│   ├── CaptainTab.tsx        # Captain picks + DGW-aware narrative
+│   ├── ChipTab.tsx           # Wildcard & Free Hit squad builder
+│   ├── SummaryBar.tsx        # GW points, season rank, squad value, manager info
+│   └── SquadRatingCard.tsx   # Team Quality + This GW two-metric card
 │
 └── lib/
-    ├── fpl.ts                # All core logic: dFDR, scoring, recommendations
+    ├── fpl.ts                # All core logic: dFDR, power rating, DGW/BGW, chip squad
     └── types.ts              # TypeScript interfaces for FPL API data
 ```
 
@@ -135,25 +164,25 @@ The standard FPL FDR (1–5 integer) is assigned pre-season and updated infreque
 
 The two components are blended: `dFDR = 0.4 × staticFdr + 0.6 × rollingFdr`
 
-The 60/40 split means recent form drives the rating, but a single fluky scoreline (e.g. a 5-0) can't collapse a team's rating entirely.
+The 60/40 split means recent form drives the rating, but a single fluky scoreline can't collapse a team's rating entirely.
 
 ---
 
 ## Player Scoring Formula
 
-Used by both the Recommended XI picker and the Captain tab:
+Used by the Recommended XI picker, Captain tab, and Chip squad builder:
 
 ```
-score = attackContrib × fixtureEase × availability × formNudge
+playerScore = attackContrib × fixtureEase × availability × formNudge
 ```
 
 Where:
-- `fixtureEase = (6 - dFDR) / 5` — ranges from 0.2 (hardest) to 1.0 (easiest)
+- `fixtureEase` — `(6 - dFDR) / 5` for a single GW (0.2–1.0); for DGW, sums both eases with 85% diminishing return on the second; for BGW, 0.08
 - `availability` — 1.0 (fit) / 0.75 (≥75% chance) / 0.40 (50–74%) / 0.10 (<50%)
-- `formNudge = 1 + (form / 10) × 0.2` — form adjusts score by ±20% at most
-- `attackContrib` — position-specific (see Recommended XI section above)
+- `formNudge = 1 + (form / 10) × 0.2` — adjusts score by ±20% at most
+- `attackContrib` — position-specific (see Player Power Rating section above)
 
-Players with fewer than 3 games worth of minutes fall back to `points_per_game × 0.3` to avoid cold-start noise from small sample sizes.
+Players with fewer than 3 games worth of minutes fall back to `PPG × 0.3` to avoid cold-start noise.
 
 ---
 
