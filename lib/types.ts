@@ -13,6 +13,7 @@ export interface FPLPlayer {
   selected_by_percent: string
   ep_next: string
   total_points: number
+  event_points: number   // points scored in the most recent / live GW
   minutes: number
   points_per_game: string
   expected_goals_per_90: string
@@ -42,6 +43,7 @@ export interface FPLEvent {
   is_next: boolean
   is_previous: boolean
   finished: boolean
+  deadline_time: string   // ISO 8601, e.g. "2025-05-09T17:30:00Z"
 }
 
 export interface FPLFixture {
@@ -145,4 +147,5 @@ export interface AppState {
   teamMap: Record<number, FPLTeam>
   fixtureMap: Record<number, UpcomingFixture[]>
   understat: Record<string, UnderstatTeamStats> // keyed by FPL short_name
+  nextDeadline: { gw: number; time: string } | null
 }

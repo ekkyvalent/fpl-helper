@@ -34,12 +34,13 @@ const avg = (nums: number[]) =>
   nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null
 
 export function buildFixtureMap(
-  fixtures: FPLFixture[]
+  fixtures: FPLFixture[],
+  activeGW?: number   // keep finished fixtures for this GW (current ongoing GW)
 ): Record<number, UpcomingFixture[]> {
   const map: Record<number, UpcomingFixture[]> = {}
 
   fixtures
-    .filter((f) => !f.finished && f.event != null)
+    .filter((f) => f.event != null && (!f.finished || f.event === activeGW))
     .forEach((f) => {
       const pairs = [
         { team: f.team_h, opp: f.team_a, home: true,  diff: f.team_h_difficulty },
@@ -174,12 +175,25 @@ export function buildAppState(
   const teamMap = Object.fromEntries(bootstrap.teams.map((t) => [t.id, t]))
   const allTeams = bootstrap.teams
 
-  const nextEv  = bootstrap.events.find((e) => e.is_next)
-  const startGW = nextEv ? nextEv.id : currentGW
-  const nextGWs = [0, 1, 2, 3, 4].map((i) => startGW + i)
+  const currentEvent = bootstrap.events.find((e) => e.is_current)
+  const nextEv       = bootstrap.events.find((e) => e.is_next)
 
-  const fixtureMap     = buildFixtureMap(fixtures)
+  // If the current GW is still in progress (not all matches finished),
+  // keep showing current-GW fixtures on the pitch until it's fully done.
+  const isOngoing = currentEvent && !currentEvent.finished
+  const startGW   = isOngoing ? currentGW : (nextEv ? nextEv.id : currentGW)
+  const nextGWs   = [0, 1, 2, 3, 4].map((i) => startGW + i)
+
+  // For an ongoing GW, include its finished games in the fixture map so
+  // players still show their current-GW opponent on the pitch.
+  const fixtureMap      = buildFixtureMap(fixtures, isOngoing ? currentGW : undefined)
   const rollingConceded = buildRollingConcededMap(fixtures)
+
+  // Next transfer deadline — the upcoming GW's deadline_time
+  const deadlineEvent = nextEv ?? currentEvent
+  const nextDeadline  = deadlineEvent
+    ? { gw: deadlineEvent.id, time: deadlineEvent.deadline_time }
+    : null
 
   // Inject blended dDifficulty: 40% FPL strength + 60% rolling goals conceded
   for (const fixes of Object.values(fixtureMap)) {
@@ -193,7 +207,7 @@ export function buildAppState(
 
   const squad = buildSquad(bootstrap, picks, fixtureMap, teamMap, nextGWs)
 
-  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap, understat: {} }
+  return { bootstrap, teamInfo, picks, currentGW, nextGWs, squad, teamMap, fixtureMap, understat: {}, nextDeadline }
 }
 
 // ── Team Colors (2024/25 Premier League) ──────────────────────
