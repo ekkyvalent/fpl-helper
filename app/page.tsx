@@ -136,6 +136,18 @@ function InputScreen({
           Forget saved Team ID
         </button>
       )}
+
+      <p className="mt-10 text-xs text-gray-400 text-center">
+        Free forever · Built with ☕ ·{' '}
+        <a
+          href="https://ko-fi.com/ekkypramana"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-yellow-600 hover:text-yellow-700 font-semibold"
+        >
+          Buy me a coffee if it helped
+        </a>
+      </p>
     </div>
   )
 }
@@ -360,22 +372,33 @@ export default function Home() {
           <span className="w-2 h-2 bg-green-600 rounded-full" />
           <span className="text-[17px] font-extrabold text-green-600 tracking-tight">FPL Helper</span>
         </button>
-        {appState && screen === 'app' && (
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1 rounded-full">
-              ID {savedId}
-            </span>
-            <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
-              GW {appState.currentGW}
-            </span>
-            <button
-              onClick={() => { setScreen('input'); setAppState(null) }}
-              className="text-xs font-semibold text-gray-400 hover:text-gray-700 border border-gray-200 hover:border-gray-400 px-3 py-1 rounded-full transition-colors cursor-pointer bg-transparent"
-            >
-              Change Team
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {appState && screen === 'app' && (
+            <>
+              <span className="hidden sm:inline bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1 rounded-full">
+                ID {savedId}
+              </span>
+              <span className="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                GW {appState.currentGW}
+              </span>
+              <button
+                onClick={() => { setScreen('input'); setAppState(null) }}
+                className="text-xs font-semibold text-gray-400 hover:text-gray-700 border border-gray-200 hover:border-gray-400 px-3 py-1 rounded-full transition-colors cursor-pointer bg-transparent"
+              >
+                Change Team
+              </button>
+            </>
+          )}
+          <a
+            href="https://ko-fi.com/ekkypramana"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors"
+          >
+            <span>☕</span>
+            <span className="hidden sm:inline">Support</span>
+          </a>
+        </div>
       </header>
 
       {appState?.nextDeadline && screen === 'app' && (
