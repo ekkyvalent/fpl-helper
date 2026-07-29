@@ -58,11 +58,13 @@ export function buildFixtureMap(
 
 export function buildSquad(
   bootstrap: FPLBootstrap,
-  picks: FPLPicks,
+  picks: FPLPicks | null,
   fixtureMap: Record<number, UpcomingFixture[]>,
   teamMap: Record<number, FPLTeam>,
   nextGWs: number[]
 ): SquadPlayer[] {
+  if (!picks) return []
+
   const pMap = Object.fromEntries(bootstrap.elements.map((el) => [el.id, el]))
 
   return picks.picks.map((pick) => {
@@ -168,7 +170,7 @@ function computeDynamicFdrFromStrength(
 export function buildAppState(
   bootstrap: FPLBootstrap,
   teamInfo: FPLEntry,
-  picks: FPLPicks,
+  picks: FPLPicks | null,
   fixtures: FPLFixture[],
   currentGW: number
 ): AppState {
@@ -236,6 +238,7 @@ export const TEAM_COLORS: Record<string, { primary: string; secondary: string }>
 
 // ── Formation helpers ──────────────────────────────────────────
 export function detectFormation(squad: SquadPlayer[]): string {
+  if (squad.length === 0) return '0-0-0'
   const s = squad.slice(0, 11)
   const d = s.filter((p) => p.element_type === 2).length
   const m = s.filter((p) => p.element_type === 3).length
@@ -267,6 +270,9 @@ export function calculateSquadRating(state: AppState): {
   fitCount: number
 } {
   const starting = state.squad.slice(0, 11)
+  if (starting.length === 0) {
+    return { score: 50, formScore: 0, fixtureScore: 0, availScore: 0, avgForm: 0, avgFdr: 0, fitCount: 0 }
+  }
 
   // Form (0–40): avg form of starters normalised against a ceiling of 8
   const avgForm = starting.reduce((s, p) => s + parseFloat(p.form || '0'), 0) / 11
@@ -376,6 +382,8 @@ export function playerScore(p: SquadPlayer): number {
  * Optimises for playerScore (form × fixture ease × availability).
  */
 export function recommendStartingXI(squad: SquadPlayer[]): SquadPlayer[] {
+  if (squad.length === 0) return []
+
   const scored = squad.map((p) => ({ p, score: playerScore(p) }))
                       .sort((a, b) => b.score - a.score)
 
@@ -522,6 +530,7 @@ export function squadPowerStats(squad: SquadPlayer[]): {
   xiPower: number        // avg power of starting 11
   xiGWScore: number      // avg GW score of starting 11
 } {
+  if (squad.length === 0) return { squadPower: 0, xiPower: 0, xiGWScore: 0 }
   const starting = squad.slice(0, 11)
   const xiPower    = Math.round(starting.reduce((s, p) => s + playerPowerRating(p), 0) / 11)
   const xiGWScore  = Math.round(starting.reduce((s, p) => s + playerGWScore(p), 0) / 11)

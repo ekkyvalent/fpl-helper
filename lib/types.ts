@@ -140,7 +140,7 @@ export interface UnderstatTeamStats {
 export interface AppState {
   bootstrap: FPLBootstrap
   teamInfo: FPLEntry
-  picks: FPLPicks
+  picks: FPLPicks | null
   currentGW: number
   nextGWs: number[]
   squad: SquadPlayer[]

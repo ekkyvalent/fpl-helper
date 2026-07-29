@@ -51,6 +51,17 @@ function ScoreBlock({
 }
 
 export default function SquadRatingCard({ state }: Props) {
+  if (state.squad.length === 0) {
+    return (
+      <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-xs">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Your Squad</p>
+        </div>
+        <p className="text-sm text-gray-500">No squad data — ratings will appear in Gameweek 1.</p>
+      </div>
+    )
+  }
+
   const { avgForm, avgFdr, fitCount } = calculateSquadRating(state)
   const { xiPower, xiGWScore } = squadPowerStats(state.squad)
 

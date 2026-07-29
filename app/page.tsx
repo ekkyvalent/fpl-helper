@@ -327,16 +327,16 @@ export default function Home() {
       const teamInfo = await fpl(`/entry/${teamId}`)
 
       setLoadMsg('Fetching squad picks…')
-      let picks
+      let picks: any = null
       for (const gw of [currentGW, currentGW - 1, currentGW - 2]) {
         try {
           picks = await fpl(`/entry/${teamId}/event/${gw}/picks`)
           if (picks) break
         } catch {
-          // try previous GW
+          // try previous GW — pre-season has no picks data yet
         }
       }
-      if (!picks) throw new Error('Could not find picks for any recent gameweek')
+      // Pre-season: if no picks found, app still loads without squad data
 
       setLoadMsg('Pulling fixture data…')
       const fixtures = await fpl('/fixtures')

@@ -75,6 +75,17 @@ function FormBadge({ form }: { form: string }) {
 }
 
 export default function FixturesTab({ state }: Props) {
+  if (state.squad.length === 0) {
+    return (
+      <div className="bg-white border border-gray-100 rounded-xl p-12 text-center">
+        <p className="text-4xl mb-3">📋</p>
+        <p className="text-gray-500 text-sm">
+          No squad data yet — fixture table will appear once picks are available in Gameweek 1.
+        </p>
+      </div>
+    )
+  }
+
   const starting = state.squad.slice(0, 11)
   const bench    = [
     ...state.squad.slice(11).filter((p) => p.element_type === 1),

@@ -209,6 +209,20 @@ export default function SquadTab({ state, previewSquad, previewLabel }: Props) {
   const [mode, setMode] = useState<'current' | 'recommended'>('current')
   const isChipPreview = !!previewSquad
 
+  // Pre-season: no squad data available
+  if (state.squad.length === 0 && !previewSquad) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-5xl mb-4">🌴</p>
+        <p className="text-lg font-bold text-gray-700 mb-1">No squad data yet</p>
+        <p className="text-sm text-gray-400 max-w-xs">
+          Pre-season mode — squad picks aren&apos;t available until Gameweek 1.
+          Everything else (team info, fixtures, player stats) is still loading.
+        </p>
+      </div>
+    )
+  }
+
   // GK always first in bench
   const sortBench = (bench: typeof state.squad) => [
     ...bench.filter((p) => p.element_type === 1),

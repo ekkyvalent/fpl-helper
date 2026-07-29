@@ -15,14 +15,15 @@ function Card({ label, value, sub, highlight }: { label: string; value: string; 
 
 export default function SummaryBar({ state }: Props) {
   const { teamInfo, picks, currentGW } = state
-  const eh = picks.entry_history
+  const gwPts = picks?.entry_history?.points ?? 0
+  const gwRank = picks?.entry_history?.rank
 
   return (
     <div className="grid grid-cols-2 gap-2">
       <Card
         label={`GW ${currentGW} Points`}
-        value={`${eh?.points ?? 0} pts`}
-        sub={`GW rank: ${eh?.rank ? `#${eh.rank.toLocaleString()}` : '—'}`}
+        value={`${gwPts} pts`}
+        sub={`GW rank: ${gwRank ? `#${gwRank.toLocaleString()}` : '—'}`}
         highlight
       />
       <Card
