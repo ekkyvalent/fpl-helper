@@ -10,6 +10,7 @@ import FixturesTab from '@/components/FixturesTab'
 import TransfersTab from '@/components/TransfersTab'
 import CaptainTab from '@/components/CaptainTab'
 import ChipTab from '@/components/ChipTab'
+import PreSeasonBuilder from '@/components/PreSeasonBuilder'
 
 const STORAGE_KEY = 'fpl_team_id'
 const RIGHT_TABS = ['Fixtures', 'Transfers', 'Captain', 'Chip'] as const
@@ -191,6 +192,15 @@ function AppScreen({ state, teamId }: { state: AppState; teamId: string }) {
   const chipProps = {
     state,
     onSquadChange: (squad: SquadPlayer[], label: string) => setChipPreview({ squad, label }),
+  }
+
+  // Pre-season mode: squad is empty — show builder centered
+  if (state.squad.length === 0) {
+    return (
+      <div className="flex-1 overflow-y-auto p-5 flex justify-center">
+        <PreSeasonBuilder state={state} />
+      </div>
+    )
   }
 
   return (
