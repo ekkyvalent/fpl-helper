@@ -606,6 +606,7 @@ export function buildChipSquad(
     minCost[type] = Math.min(...prices, 40)
   }
 
+  // ── Pass 1: Greedy score-based ─────────────────────────────
   for (const { p } of scored) {
     if (chosen.length >= 15) break
 
@@ -625,6 +626,115 @@ export function buildChipSquad(
     filled[type]++
     clubCount[p.team] = (clubCount[p.team] ?? 0) + 1
     spent += p.now_cost
+  }
+
+  // ── Pass 2: Budget fill — if greedy couldn't fill all 15 — ─
+  // Greedy can get stuck when remaining budget < minimum cost to
+  // fill remaining slots. This pass picks the cheapest available
+  // per open slot without the safety check.
+  if (chosen.length < 15) {
+    const fillPass = () => {
+      const fillByPos = scored
+        .filter(({ p }) => {
+          if (filled[p.element_type] >= slots[p.element_type]) return false
+          if ((clubCount[p.team] ?? 0) >= 3) return false
+          return true
+        })
+        .sort((a, b) => a.p.now_cost - b.p.now_cost)  // cheapest first
+
+      for (const { p } of fillByPos) {
+        if (chosen.length >= 15) break
+        const type = p.element_type
+        if (filled[type] >= slots[type]) continue
+        if ((clubCount[p.team] ?? 0) >= 3) continue
+        if (budget - spent - p.now_cost < 0) continue
+
+        chosen.push(p)
+        filled[type]++
+        clubCount[p.team] = (clubCount[p.team] ?? 0) + 1
+        spent += p.now_cost
+      }
+    }
+
+    fillPass()
+
+    // ── Pass 3: Budget swap — if still can't fill all slots, ─
+    // swap the most expensive bench player for a cheaper one to
+    // free up budget. The bench player's replacement comes from
+    // a lower-cost player in the same position.
+    if (chosen.length < 15) {
+      // Find unfilled positions and the cheapest available for each
+      const needed: { type: number; needed: number; minNeeded: number }[] = []
+      for (const t of [1, 2, 3, 4] as const) {
+        const n = slots[t] - filled[t]
+        if (n > 0) {
+          const cheapestAvailable = all
+            .filter((p) => p.element_type === t && (clubCount[p.team] ?? 0) < 3)
+            .sort((a, b) => a.now_cost - b.now_cost)
+          const minCostForSlot = cheapestAvailable[0]?.now_cost ?? 999
+          needed.push({ type: t, needed: n, minNeeded: minCostForSlot })
+        }
+      }
+
+      if (needed.length > 0) {
+        const totalAdditional = needed.reduce((s, n) => s + n.minNeeded, 0)
+
+        // Sort chosen by cost descending (most expensive bench first)
+        // We only swap players who have a cheaper alternative in same position
+        const swapable = chosen
+          .map((p, idx) => {
+            const cheaperExists = all.some(
+              (c) =>
+                c.element_type === p.element_type &&
+                c.now_cost < p.now_cost &&
+                c.id !== p.id &&
+                (clubCount[c.team] ?? 0) < 3 &&
+                (c.status === 'a' || (c.chance_of_playing_next_round ?? 0) >= 50)
+            )
+            return { player: p, idx, cheaperExists }
+          })
+          .filter((s) => s.cheaperExists)
+          .sort((a, b) => b.player.now_cost - a.player.now_cost)
+
+        for (const { player, idx } of swapable) {
+          if (chosen.length >= 15) break
+
+          // Find cheapest replacement for this player in same position + team constraint
+          const replacement = all
+            .filter(
+              (c) =>
+                c.element_type === player.element_type &&
+                c.now_cost < player.now_cost &&
+                c.id !== player.id &&
+                (clubCount[c.team] ?? 0) < 3 &&
+                (c.status === 'a' || (c.chance_of_playing_next_round ?? 0) >= 50)
+            )
+            .sort((a, b) => a.now_cost - b.now_cost)[0]
+
+          if (!replacement) continue
+
+          const saving = player.now_cost - replacement.now_cost
+          const wouldCover = saving >= totalAdditional
+
+          if (wouldCover) {
+            // Do the swap
+            chosen.splice(idx, 1)
+            filled[player.element_type]--
+            clubCount[player.team] = (clubCount[player.team] ?? 1) - 1
+            spent -= player.now_cost
+
+            chosen.push(replacement as unknown as SquadPlayer)
+            filled[replacement.element_type]++
+            clubCount[replacement.team] = (clubCount[replacement.team] ?? 0) + 1
+            spent += replacement.now_cost
+
+            // Now try filling remaining slots again
+            fillPass()
+            break
+          }
+        }
+      }
+    }
   }
 
   return chosen
