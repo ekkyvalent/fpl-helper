@@ -257,8 +257,7 @@ export default function PreSeasonBuilder({ state }: Props) {
           </p>
         </div>
         <div
-          className="relative w-full rounded-none overflow-hidden shadow-lg"
-          style={{ paddingBottom: '100%', maxHeight: '400px' }}
+          className="relative w-full aspect-square max-h-[400px] overflow-hidden shadow-lg"
         >
           <MiniPitch />
           {positioned.map((p) => {
