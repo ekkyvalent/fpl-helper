@@ -597,6 +597,7 @@ export function buildChipSquad(
   const filled: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 }
   const clubCount: Record<number, number> = {}
   const chosen: SquadPlayer[] = []
+  const chosenIds = new Set<number>()
   let spent = 0
 
   // Cheapest available player per position (budget safety floor)
@@ -623,6 +624,7 @@ export function buildChipSquad(
     if (budget - spent - p.now_cost < minAfter) continue
 
     chosen.push(p)
+    chosenIds.add(p.id)
     filled[type]++
     clubCount[p.team] = (clubCount[p.team] ?? 0) + 1
     spent += p.now_cost
@@ -636,6 +638,7 @@ export function buildChipSquad(
     const fillPass = () => {
       const fillByPos = scored
         .filter(({ p }) => {
+          if (chosenIds.has(p.id)) return false
           if (filled[p.element_type] >= slots[p.element_type]) return false
           if ((clubCount[p.team] ?? 0) >= 3) return false
           return true
@@ -650,6 +653,7 @@ export function buildChipSquad(
         if (budget - spent - p.now_cost < 0) continue
 
         chosen.push(p)
+        chosenIds.add(p.id)
         filled[type]++
         clubCount[p.team] = (clubCount[p.team] ?? 0) + 1
         spent += p.now_cost
@@ -669,7 +673,7 @@ export function buildChipSquad(
         const n = slots[t] - filled[t]
         if (n > 0) {
           const cheapestAvailable = all
-            .filter((p) => p.element_type === t && (clubCount[p.team] ?? 0) < 3)
+            .filter((p) => p.element_type === t && !chosenIds.has(p.id) && (clubCount[p.team] ?? 0) < 3)
             .sort((a, b) => a.now_cost - b.now_cost)
           const minCostForSlot = cheapestAvailable[0]?.now_cost ?? 999
           needed.push({ type: t, needed: n, minNeeded: minCostForSlot })
@@ -688,6 +692,7 @@ export function buildChipSquad(
                 c.element_type === p.element_type &&
                 c.now_cost < p.now_cost &&
                 c.id !== p.id &&
+                !chosenIds.has(c.id) &&
                 (clubCount[c.team] ?? 0) < 3 &&
                 (c.status === 'a' || (c.chance_of_playing_next_round ?? 0) >= 50)
             )
@@ -706,6 +711,7 @@ export function buildChipSquad(
                 c.element_type === player.element_type &&
                 c.now_cost < player.now_cost &&
                 c.id !== player.id &&
+                !chosenIds.has(c.id) &&
                 (clubCount[c.team] ?? 0) < 3 &&
                 (c.status === 'a' || (c.chance_of_playing_next_round ?? 0) >= 50)
             )
@@ -719,11 +725,13 @@ export function buildChipSquad(
           if (wouldCover) {
             // Do the swap
             chosen.splice(idx, 1)
+            chosenIds.delete(player.id)
             filled[player.element_type]--
             clubCount[player.team] = (clubCount[player.team] ?? 1) - 1
             spent -= player.now_cost
 
             chosen.push(replacement as unknown as SquadPlayer)
+            chosenIds.add(replacement.id)
             filled[replacement.element_type]++
             clubCount[replacement.team] = (clubCount[replacement.team] ?? 0) + 1
             spent += replacement.now_cost
