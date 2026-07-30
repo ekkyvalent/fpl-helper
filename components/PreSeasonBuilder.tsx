@@ -250,12 +250,14 @@ export default function PreSeasonBuilder({ state }: Props) {
       })()}
 
       {/* ── Recommended squad on Pitch Preview ── */}
-      <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-3">
-          Recommended Starting XI · {formationStr}
-        </p>
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+            Recommended Starting XI · {formationStr}
+          </p>
+        </div>
         <div
-          className="relative w-full rounded-2xl overflow-hidden shadow-lg"
+          className="relative w-full rounded-none overflow-hidden shadow-lg"
           style={{ paddingBottom: '100%', maxHeight: '400px' }}
         >
           <MiniPitch />
@@ -276,6 +278,33 @@ export default function PreSeasonBuilder({ state }: Props) {
               </div>
             )
           })}
+        </div>
+
+        {/* ── Bench below pitch ── */}
+        <div className="border-t border-gray-100">
+          <div className="px-4 py-1.5 bg-gray-50/80">
+            <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">Subs</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3">
+            {bench.map((p) => {
+              const colors = TEAM_COLORS[p.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
+              const score = mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
+              return (
+                <div key={p.id} className="flex items-center gap-2.5 bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="w-6 h-6 shrink-0">
+                    <MiniShirt primary={colors.primary} secondary={colors.secondary} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-gray-900 truncate leading-tight">{p.web_name}</p>
+                    <p className="text-[9px] text-gray-400">{posLabel(p.element_type)} · {p.teamShort}</p>
+                  </div>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(score)}`}>
+                    {score}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
