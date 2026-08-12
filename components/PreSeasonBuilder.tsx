@@ -158,7 +158,7 @@ export default function PreSeasonBuilder({ state }: Props) {
   }, [allPlayers])
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col gap-4">
+    <div className="max-w-6xl mx-auto w-full flex flex-col gap-4">
 
       {/* ── Header ── */}
       <div className="text-center">
@@ -208,289 +208,303 @@ export default function PreSeasonBuilder({ state }: Props) {
           : '🃏 Optimised for Power Rating × upcoming fixture run — builds quality for sustained performance.'}
       </div>
 
-      {/* ── Budget bar ── */}
-      <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
-        <div className="flex justify-between text-[10px] text-gray-400 mb-1.5">
-          <span className="font-bold uppercase tracking-wider">Budget used</span>
-          <span>{fmt(totalCost)} / {fmt(budget)}</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500 rounded-full transition-all"
-            style={{ width: `${Math.min((totalCost / budget) * 100, 100)}%` }}
-          />
-        </div>
-      </div>
+      {/* ── Two-column grid (desktop) / single column (mobile) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-      {/* ── Recommended Squad Strength ── */}
-      {(() => {
-        const { xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
-        const delta = gw - xp
-        function scoreColor(v: number) {
-          if (v >= 70) return { text: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
-          if (v >= 55) return { text: '#65a30d', bg: '#f7fee7', border: '#d9f99d' }
-          if (v >= 40) return { text: '#d97706', bg: '#fffbeb', border: '#fde68a' }
-          return              { text: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
-        }
-        const blocks = [
-          { value: xp, label: 'Team Quality', sublabel: 'Average Power Rating of recommended XI', accent: scoreColor(xp) },
-          { value: gw, label: 'This GW',      sublabel: 'Average GW Score adjusted for GW1 fixtures', accent: scoreColor(gw) },
-        ]
-        return (
+        {/* ── LEFT COLUMN: Budget, Strength, Pitch+Subs ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* ── Budget bar ── */}
           <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2.5">
-              Recommended Squad Strength
-            </p>
-            <div className="flex gap-3">
-              {blocks.map(({ value, label, sublabel, accent }) => (
-                <div
-                  key={label}
-                  className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-0.5"
-                  style={{ background: accent.bg, borderColor: accent.border }}
-                >
-                  <span className="text-4xl font-extrabold leading-none tracking-tight" style={{ color: accent.text }}>
-                    {value}
-                  </span>
-                  <p className="text-[13px] font-bold text-gray-800 mt-1.5">{label}</p>
-                  <p className="text-[11px] text-gray-500 leading-snug">{sublabel}</p>
-                  <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden mt-2">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, background: accent.text }} />
-                  </div>
-                </div>
-              ))}
+            <div className="flex justify-between text-[10px] text-gray-400 mb-1.5">
+              <span className="font-bold uppercase tracking-wider">Budget used</span>
+              <span>{fmt(totalCost)} / {fmt(budget)}</span>
             </div>
-            {Math.abs(delta) >= 3 && (
-              <p className="text-xs text-gray-400 mt-3 text-center">
-                {delta < 0
-                  ? `⚠️ This GW is ${Math.abs(delta)} pts below Team Quality — tough fixtures`
-                  : `✅ This GW is ${delta} pts above Team Quality — favourable fixtures`}
-              </p>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* ── Recommended squad on Pitch Preview ── */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-            Recommended Starting XI · {formationStr}
-          </p>
-        </div>
-        <div
-          className="relative w-full aspect-square max-h-[400px] overflow-hidden shadow-lg"
-        >
-          <MiniPitch />
-          {positioned.map((p) => {
-            const colors = TEAM_COLORS[p.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
-            return (
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                key={p.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
-                style={{ left: `${p.pitchX}%`, top: `${p.pitchY}%` }}
-              >
-                <div className="w-8 h-8">
-                  <MiniShirt primary={colors.primary} secondary={colors.secondary} />
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${Math.min((totalCost / budget) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* ── Recommended Squad Strength ── */}
+          {(() => {
+            const { xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
+            const delta = gw - xp
+            function scoreColor(v: number) {
+              if (v >= 70) return { text: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
+              if (v >= 55) return { text: '#65a30d', bg: '#f7fee7', border: '#d9f99d' }
+              if (v >= 40) return { text: '#d97706', bg: '#fffbeb', border: '#fde68a' }
+              return              { text: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
+            }
+            const blocks = [
+              { value: xp, label: 'Team Quality', sublabel: 'Average Power Rating of recommended XI', accent: scoreColor(xp) },
+              { value: gw, label: 'This GW',      sublabel: 'Average GW Score adjusted for GW1 fixtures', accent: scoreColor(gw) },
+            ]
+            return (
+              <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2.5">
+                  Recommended Squad Strength
+                </p>
+                <div className="flex gap-3">
+                  {blocks.map(({ value, label, sublabel, accent }) => (
+                    <div
+                      key={label}
+                      className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-0.5"
+                      style={{ background: accent.bg, borderColor: accent.border }}
+                    >
+                      <span className="text-4xl font-extrabold leading-none tracking-tight" style={{ color: accent.text }}>
+                        {value}
+                      </span>
+                      <p className="text-[13px] font-bold text-gray-800 mt-1.5">{label}</p>
+                      <p className="text-[11px] text-gray-500 leading-snug">{sublabel}</p>
+                      <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden mt-2">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${value}%`, background: accent.text }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 text-center max-w-[72px]">
-                  <p className="text-white text-[10px] font-bold leading-tight truncate">{p.web_name}</p>
-                </div>
+                {Math.abs(delta) >= 3 && (
+                  <p className="text-xs text-gray-400 mt-3 text-center">
+                    {delta < 0
+                      ? `⚠️ This GW is ${Math.abs(delta)} pts below Team Quality — tough fixtures`
+                      : `✅ This GW is ${delta} pts above Team Quality — favourable fixtures`}
+                  </p>
+                )}
               </div>
             )
-          })}
+          })()}
+
+          {/* ── Recommended squad on Pitch Preview ── */}
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                Recommended Starting XI · {formationStr}
+              </p>
+            </div>
+            <div
+              className="relative w-full aspect-square max-h-[400px] overflow-hidden shadow-lg"
+            >
+              <MiniPitch />
+              {positioned.map((p) => {
+                const colors = TEAM_COLORS[p.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
+                return (
+                  <div
+                    key={p.id}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
+                    style={{ left: `${p.pitchX}%`, top: `${p.pitchY}%` }}
+                  >
+                    <div className="w-8 h-8">
+                      <MiniShirt primary={colors.primary} secondary={colors.secondary} />
+                    </div>
+                    <div className="bg-black/60 backdrop-blur-sm rounded px-1.5 py-0.5 text-center max-w-[72px]">
+                      <p className="text-white text-[10px] font-bold leading-tight truncate">{p.web_name}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Bench below pitch ── */}
+            <div className="border-t border-gray-100">
+              <div className="px-4 py-1.5 bg-gray-50/80">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">Subs</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3">
+                {bench.map((p) => {
+                  const colors = TEAM_COLORS[p.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
+                  const score = mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
+                  return (
+                    <div key={p.id} className="flex items-center gap-2.5 bg-gray-50 rounded-lg px-3 py-2">
+                      <div className="w-6 h-6 shrink-0">
+                        <MiniShirt primary={colors.primary} secondary={colors.secondary} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold text-gray-900 truncate leading-tight">{p.web_name}</p>
+                        <p className="text-[9px] text-gray-400">{posLabel(p.element_type)} · {p.teamShort}</p>
+                      </div>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(score)}`}>
+                        {score}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        {/* ── Bench below pitch ── */}
-        <div className="border-t border-gray-100">
-          <div className="px-4 py-1.5 bg-gray-50/80">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">Subs</span>
+        {/* ── RIGHT COLUMN: Squad, Player Pool, Value Picks ── */}
+        <div className="flex flex-col gap-4">
+
+          {/* ── Recommended squad (Starting XI + Bench) ── */}
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                Recommended Squad
+              </p>
+              <p className="text-[10px] text-gray-400">
+                Ranked by {mode === 'freehit' ? 'GW Score' : 'Power'}
+              </p>
+            </div>
+
+            <div className="divide-y divide-gray-50">
+              {starting.map((p) => (
+                <SquadRow key={p.id} p={p} isBench={false} mode={mode} teamMap={state.teamMap} />
+              ))}
+            </div>
+
+            <div className="px-4 py-1.5 bg-gray-50 border-y border-gray-100">
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">Bench</span>
+            </div>
+
+            <div className="divide-y divide-gray-50">
+              {bench.map((p) => (
+                <SquadRow key={p.id} p={p} isBench={true} mode={mode} teamMap={state.teamMap} />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3">
-            {bench.map((p) => {
-              const colors = TEAM_COLORS[p.teamShort] ?? { primary: '#374151', secondary: '#FFFFFF' }
-              const score = mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
+
+          {/* ── Player pool by position ── */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2">
+              Player Pool — ranked by {mode === 'freehit' ? 'GW Score' : 'Power Rating'}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {POSITIONS.map(({ type, label }) => {
+                const players = allPlayers
+                  .filter((p) => p.element_type === type)
+                  .sort((a, b) => scorePlayer(b) - scorePlayer(a))
+                  .slice(0, 20)
+                const isOpen = openPos === type
+
+                return (
+                  <div key={type} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setOpenPos(isOpen ? null : type)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-extrabold text-gray-700">{label}</span>
+                        <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
+                          {players.length} players
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-400">{isOpen ? '▲' : '▼'}</span>
+                    </button>
+
+                    {isOpen && (
+                      <div className="border-t border-gray-100">
+                        {/* Header */}
+                        <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3rem_3rem] gap-1 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
+                          {['#', 'Player', '£', 'PWR', 'GW', 'Next', ''].map((h) => (
+                            <span key={h} className="text-[9px] font-extrabold uppercase tracking-wider text-gray-400 text-center first:text-left">
+                              {h}
+                            </span>
+                          ))}
+                        </div>
+
+                        {players.map((p, i) => {
+                          const inSquad  = chipSquad.some((c) => c.id === p.id)
+                          const pFixes   = getNextGWFixtures(p)
+                          const pGWType  = gwType(p)
+                          const fixLabel = pFixes.length === 0
+                            ? 'BGW'
+                            : pFixes.map((f) => `${state.teamMap[f.opponent]?.short_name ?? '?'} ${f.is_home ? 'H' : 'A'}`).join('+')
+                          const pwr = playerPowerRating(p)
+                          const gw  = playerGWScore(p)
+
+                          return (
+                            <div
+                              key={p.id}
+                              className={`grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3.5rem_3rem] gap-1 items-center px-3 py-2 border-b border-gray-50 last:border-none ${
+                                inSquad ? 'bg-green-50' : 'hover:bg-gray-50/50'
+                              }`}
+                            >
+                              <span className="text-[10px] text-gray-400">{i + 1}</span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
+                                  {pGWType === 'dgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-100 text-purple-700 shrink-0">DGW</span>}
+                                  {pGWType === 'bgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">BGW</span>}
+                                </div>
+                                <p className="text-[9px] text-gray-400">
+                                  {p.teamShort}
+                                  {parseFloat(p.selected_by_percent) < 10 && (
+                                    <span className="ml-1 text-[7px] font-medium bg-amber-50 text-amber-700 px-0.5 rounded">
+                                      {parseFloat(p.selected_by_percent).toFixed(1)}%
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
+                              <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(pwr)}`}>
+                                {pwr}
+                              </span>
+                              <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(gw)}`}>
+                                {gw}
+                              </span>
+                              <span className="text-[10px] text-gray-500 text-center leading-tight">
+                                {fixLabel}
+                              </span>
+                              <span className="text-center">
+                                {inSquad && (
+                                  <span className="text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
+                                    ✓ In
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ── Value Picks by position ── */}
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                Value Picks — top points per £m
+              </p>
+            </div>
+            {POSITIONS.map(({ type, label }) => {
+              const picks = valuePicksByPos[type]
+              if (!picks.length) return null
               return (
-                <div key={p.id} className="flex items-center gap-2.5 bg-gray-50 rounded-lg px-3 py-2">
-                  <div className="w-6 h-6 shrink-0">
-                    <MiniShirt primary={colors.primary} secondary={colors.secondary} />
+                <div key={type} className="border-b border-gray-50 last:border-none">
+                  <div className="px-4 py-1.5 bg-gray-50/80">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wide text-gray-400">{label}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-gray-900 truncate leading-tight">{p.web_name}</p>
-                    <p className="text-[9px] text-gray-400">{posLabel(p.element_type)} · {p.teamShort}</p>
+                  <div className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 bg-gray-50/50 border-b border-gray-100">
+                    {['Player','£','Points','Pts/£m'].map((h) => (
+                      <span key={h} className="text-[8px] font-extrabold uppercase tracking-wider text-gray-400 text-center first:text-left">{h}</span>
+                    ))}
                   </div>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(score)}`}>
-                    {score}
-                  </span>
+                  {picks.map(({ player: p, ppm }) => (
+                    <div key={p.id} className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 border-b border-gray-50 last:border-none">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
+                        <p className="text-[9px] text-gray-400">{p.teamShort}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
+                      <span className="text-[10px] font-semibold text-gray-700 text-center">{p.total_points}</span>
+                      <span className="text-[10px] font-bold text-green-700 text-center">{ppm.toFixed(1)}</span>
+                    </div>
+                  ))}
                 </div>
               )
             })}
           </div>
+
         </div>
-      </div>
-
-      {/* ── Recommended squad (Starting XI + Bench) ── */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-            Recommended Squad
-          </p>
-          <p className="text-[10px] text-gray-400">
-            Ranked by {mode === 'freehit' ? 'GW Score' : 'Power'}
-          </p>
-        </div>
-
-        <div className="divide-y divide-gray-50">
-          {starting.map((p) => (
-            <SquadRow key={p.id} p={p} isBench={false} mode={mode} teamMap={state.teamMap} />
-          ))}
-        </div>
-
-        <div className="px-4 py-1.5 bg-gray-50 border-y border-gray-100">
-          <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">Bench</span>
-        </div>
-
-        <div className="divide-y divide-gray-50">
-          {bench.map((p) => (
-            <SquadRow key={p.id} p={p} isBench={true} mode={mode} teamMap={state.teamMap} />
-          ))}
-        </div>
-      </div>
-
-      {/* ── Player pool by position ── */}
-      <div>
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mb-2">
-          Player Pool — ranked by {mode === 'freehit' ? 'GW Score' : 'Power Rating'}
-        </p>
-
-        <div className="flex flex-col gap-2">
-          {POSITIONS.map(({ type, label }) => {
-            const players = allPlayers
-              .filter((p) => p.element_type === type)
-              .sort((a, b) => scorePlayer(b) - scorePlayer(a))
-              .slice(0, 20)
-            const isOpen = openPos === type
-
-            return (
-              <div key={type} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setOpenPos(isOpen ? null : type)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-extrabold text-gray-700">{label}</span>
-                    <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded">
-                      {players.length} players
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-gray-400">{isOpen ? '▲' : '▼'}</span>
-                </button>
-
-                {isOpen && (
-                  <div className="border-t border-gray-100">
-                    {/* Header */}
-                    <div className="grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3rem_3rem] gap-1 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-                      {['#', 'Player', '£', 'PWR', 'GW', 'Next', ''].map((h) => (
-                        <span key={h} className="text-[9px] font-extrabold uppercase tracking-wider text-gray-400 text-center first:text-left">
-                          {h}
-                        </span>
-                      ))}
-                    </div>
-
-                    {players.map((p, i) => {
-                      const inSquad  = chipSquad.some((c) => c.id === p.id)
-                      const pFixes   = getNextGWFixtures(p)
-                      const pGWType  = gwType(p)
-                      const fixLabel = pFixes.length === 0
-                        ? 'BGW'
-                        : pFixes.map((f) => `${state.teamMap[f.opponent]?.short_name ?? '?'} ${f.is_home ? 'H' : 'A'}`).join('+')
-                      const pwr = playerPowerRating(p)
-                      const gw  = playerGWScore(p)
-
-                      return (
-                        <div
-                          key={p.id}
-                          className={`grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3.5rem_3rem] gap-1 items-center px-3 py-2 border-b border-gray-50 last:border-none ${
-                            inSquad ? 'bg-green-50' : 'hover:bg-gray-50/50'
-                          }`}
-                        >
-                          <span className="text-[10px] text-gray-400">{i + 1}</span>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1">
-                              <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
-                              {pGWType === 'dgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-100 text-purple-700 shrink-0">DGW</span>}
-                              {pGWType === 'bgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">BGW</span>}
-                            </div>
-                            <p className="text-[9px] text-gray-400">
-                              {p.teamShort}
-                              {parseFloat(p.selected_by_percent) < 10 && (
-                                <span className="ml-1 text-[7px] font-medium bg-amber-50 text-amber-700 px-0.5 rounded">
-                                  {parseFloat(p.selected_by_percent).toFixed(1)}%
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
-                          <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(pwr)}`}>
-                            {pwr}
-                          </span>
-                          <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(gw)}`}>
-                            {gw}
-                          </span>
-                          <span className="text-[10px] text-gray-500 text-center leading-tight">
-                            {fixLabel}
-                          </span>
-                          <span className="text-center">
-                            {inSquad && (
-                              <span className="text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
-                                ✓ In
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ── Value Picks by position ── */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-            Value Picks — top points per £m
-          </p>
-        </div>
-        {POSITIONS.map(({ type, label }) => {
-          const picks = valuePicksByPos[type]
-          if (!picks.length) return null
-          return (
-            <div key={type} className="border-b border-gray-50 last:border-none">
-              <div className="px-4 py-1.5 bg-gray-50/80">
-                <span className="text-[9px] font-extrabold uppercase tracking-wide text-gray-400">{label}</span>
-              </div>
-              <div className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 bg-gray-50/50 border-b border-gray-100">
-                {['Player','£','Points','Pts/£m'].map((h) => (
-                  <span key={h} className="text-[8px] font-extrabold uppercase tracking-wider text-gray-400 text-center first:text-left">{h}</span>
-                ))}
-              </div>
-              {picks.map(({ player: p, ppm }) => (
-                <div key={p.id} className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 border-b border-gray-50 last:border-none">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
-                    <p className="text-[9px] text-gray-400">{p.teamShort}</p>
-                  </div>
-                  <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
-                  <span className="text-[10px] font-semibold text-gray-700 text-center">{p.total_points}</span>
-                  <span className="text-[10px] font-bold text-green-700 text-center">{ppm.toFixed(1)}</span>
-                </div>
-              ))}
-            </div>
-          )
-        })}
       </div>
     </div>
   )
