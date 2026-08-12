@@ -193,7 +193,7 @@ export default function PreSeasonBuilder({ state }: Props) {
           <p className={`text-[10px] font-semibold ${remaining >= 0 ? 'text-green-600' : 'text-red-500'}`}>
             {remaining >= 0 ? `${fmt(remaining)} remaining` : `${fmt(Math.abs(remaining))} over budget`}
           </p>
-          <p className="text-[9px] text-gray-400">XI £{fmt(xiCost)} · Bench £{fmt(benchCost)}</p>
+          <p className="text-[9px] text-gray-400">{fmt(xiCost)} XI · {fmt(benchCost)} Bench</p>
         </div>
       </div>
 
