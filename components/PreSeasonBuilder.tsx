@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { AppState, SquadPlayer } from '@/lib/types'
 import {
   buildChipSquad,
@@ -82,6 +82,11 @@ function SquadRow({ p, isBench, mode, teamMap }: {
       </span>
       <span className="text-[10px] text-gray-400 text-right hidden sm:inline" style={{ minWidth: '4rem' }}>{fixLabel}</span>
       <span className="text-[11px] font-semibold text-gray-600 w-10 text-right">{fmt(p.now_cost)}</span>
+      {parseFloat(p.selected_by_percent) < 10 && (
+        <span className="text-[8px] font-medium bg-amber-50 text-amber-700 px-1 rounded shrink-0">
+          {parseFloat(p.selected_by_percent).toFixed(1)}%
+        </span>
+      )}
     </div>
   )
 }
@@ -122,6 +127,8 @@ export default function PreSeasonBuilder({ state }: Props) {
     ...chipSquad.filter((p) => !startIds.has(p.id) && p.element_type === 1),
     ...chipSquad.filter((p) => !startIds.has(p.id) && p.element_type !== 1),
   ]
+  const xiCost    = starting.reduce((s, p) => s + p.now_cost, 0)
+  const benchCost = totalCost - xiCost
 
   // All players enriched for pool view
   const allPlayers = enrichAllPlayers(state)
@@ -136,6 +143,19 @@ export default function PreSeasonBuilder({ state }: Props) {
     const pos   = pitchPosition(p.element_type, idx, group.length)
     return { ...p, pitchX: pos.x, pitchY: pos.y }
   })
+
+  const valuePicksByPos = useMemo(() => {
+    const grouped: Record<number, { player: SquadPlayer; ppm: number }[]> = { 1: [], 2: [], 3: [], 4: [] }
+    for (const p of allPlayers) {
+      const ppm = p.total_points / (p.now_cost / 10)
+      grouped[p.element_type].push({ player: p, ppm })
+    }
+    for (const pos of [1, 2, 3, 4]) {
+      grouped[pos].sort((a, b) => b.ppm - a.ppm)
+      grouped[pos] = grouped[pos].slice(0, 5)
+    }
+    return grouped
+  }, [allPlayers])
 
   return (
     <div className="max-w-2xl mx-auto w-full flex flex-col gap-4">
@@ -173,6 +193,7 @@ export default function PreSeasonBuilder({ state }: Props) {
           <p className={`text-[10px] font-semibold ${remaining >= 0 ? 'text-green-600' : 'text-red-500'}`}>
             {remaining >= 0 ? `${fmt(remaining)} remaining` : `${fmt(Math.abs(remaining))} over budget`}
           </p>
+          <p className="text-[9px] text-gray-400">XI £{fmt(xiCost)} · Bench £{fmt(benchCost)}</p>
         </div>
       </div>
 
@@ -399,7 +420,14 @@ export default function PreSeasonBuilder({ state }: Props) {
                               {pGWType === 'dgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-purple-100 text-purple-700 shrink-0">DGW</span>}
                               {pGWType === 'bgw' && <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">BGW</span>}
                             </div>
-                            <p className="text-[9px] text-gray-400">{p.teamShort}</p>
+                            <p className="text-[9px] text-gray-400">
+                              {p.teamShort}
+                              {parseFloat(p.selected_by_percent) < 10 && (
+                                <span className="ml-1 text-[7px] font-medium bg-amber-50 text-amber-700 px-0.5 rounded">
+                                  {parseFloat(p.selected_by_percent).toFixed(1)}%
+                                </span>
+                              )}
+                            </p>
                           </div>
                           <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
                           <span className={`text-[10px] font-bold px-1 py-0.5 rounded text-center ${powerColor(pwr)}`}>
@@ -427,6 +455,42 @@ export default function PreSeasonBuilder({ state }: Props) {
             )
           })}
         </div>
+      </div>
+
+      {/* ── Value Picks by position ── */}
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+            Value Picks — top points per £m
+          </p>
+        </div>
+        {POSITIONS.map(({ type, label }) => {
+          const picks = valuePicksByPos[type]
+          if (!picks.length) return null
+          return (
+            <div key={type} className="border-b border-gray-50 last:border-none">
+              <div className="px-4 py-1.5 bg-gray-50/80">
+                <span className="text-[9px] font-extrabold uppercase tracking-wide text-gray-400">{label}</span>
+              </div>
+              <div className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 bg-gray-50/50 border-b border-gray-100">
+                {['Player','£','Points','Pts/£m'].map((h) => (
+                  <span key={h} className="text-[8px] font-extrabold uppercase tracking-wider text-gray-400 text-center first:text-left">{h}</span>
+                ))}
+              </div>
+              {picks.map(({ player: p, ppm }) => (
+                <div key={p.id} className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-1 items-center px-3 py-1.5 border-b border-gray-50 last:border-none">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-gray-900 truncate">{p.web_name}</p>
+                    <p className="text-[9px] text-gray-400">{p.teamShort}</p>
+                  </div>
+                  <span className="text-[10px] font-semibold text-gray-600 text-center">{fmt(p.now_cost)}</span>
+                  <span className="text-[10px] font-semibold text-gray-700 text-center">{p.total_points}</span>
+                  <span className="text-[10px] font-bold text-green-700 text-center">{ppm.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

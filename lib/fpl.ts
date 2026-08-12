@@ -546,7 +546,13 @@ export function squadPowerStats(squad: SquadPlayer[]): {
  * Excludes permanently unavailable players (status 'u' or 'n' with 0 minutes).
  */
 export function enrichAllPlayers(state: AppState): SquadPlayer[] {
-  const { bootstrap, fixtureMap, teamMap, nextGWs } = state
+  const bootstrap = state.bootstrap
+  if (!bootstrap?.elements) return []
+
+  const fixtureMap = state.fixtureMap ?? {}
+  const teamMap    = state.teamMap ?? {}
+  const nextGWs    = state.nextGWs ?? []
+
   return bootstrap.elements
     .filter((el) => el.status !== 'u' || el.minutes > 0)
     .map((el) => {
@@ -583,6 +589,7 @@ export function buildChipSquad(
   mode: 'wildcard' | 'freehit'
 ): SquadPlayer[] {
   const all = enrichAllPlayers(state)
+  if (all.length === 0) return []
 
   const scorePlayer = (p: SquadPlayer): number =>
     mode === 'freehit'
@@ -742,6 +749,48 @@ export function buildChipSquad(
           }
         }
       }
+    }
+  }
+
+  // ── Pass 4: Bench upgrade — use remaining budget to ──────────
+  // upgrade bench players by swapping them for higher-scored,
+  // higher-priced alternatives without breaking constraints.
+  if (chosen.length === 15 && spent < budget) {
+    const xi = recommendStartingXI(chosen)
+    const xiIds = new Set(xi.map(p => p.id))
+    const benchPlayers = chosen.filter(p => !xiIds.has(p.id))
+    benchPlayers.sort((a, b) => scorePlayer(a) - scorePlayer(b))
+
+    for (const bp of benchPlayers) {
+      const remaining = budget - spent
+      if (remaining <= 0) break
+
+      const candidates = scored.filter(({ p }) =>
+        p.element_type === bp.element_type &&
+        p.now_cost > bp.now_cost &&
+        p.now_cost - bp.now_cost <= remaining &&
+        !chosenIds.has(p.id) &&
+        (p.status === 'a' || (p.chance_of_playing_next_round ?? 100) >= 50) &&
+        (p.team === bp.team || (clubCount[p.team] ?? 0) < 3)
+      )
+
+      if (candidates.length === 0) continue
+
+      candidates.sort((a, b) => b.score - a.score)
+      const upgrade = candidates[0].p
+
+      chosenIds.delete(bp.id)
+      clubCount[bp.team]--
+      filled[bp.element_type]--
+      spent -= bp.now_cost
+
+      const idx = chosen.findIndex(p => p.id === bp.id)
+      if (idx !== -1) chosen.splice(idx, 1)
+      chosen.push(upgrade)
+      chosenIds.add(upgrade.id)
+      clubCount[upgrade.team] = (clubCount[upgrade.team] ?? 0) + 1
+      filled[upgrade.element_type]++
+      spent += upgrade.now_cost
     }
   }
 

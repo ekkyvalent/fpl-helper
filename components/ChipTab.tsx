@@ -66,7 +66,12 @@ export default function ChipTab({ state, onSquadChange }: Props) {
   const [mode, setMode]           = useState<'wildcard' | 'freehit'>('freehit')
   const [openPos, setOpenPos]     = useState<number | null>(2)  // DEF open by default
 
-  const budget     = state.teamInfo.last_deadline_value + state.teamInfo.last_deadline_bank
+  // In pre-season the entry API returns null for value/bank fields.
+  // Fall back to the standard £100m starting budget.
+  const teamValue = state.teamInfo.last_deadline_value ?? 0
+  const teamBank  = state.teamInfo.last_deadline_bank ?? 0
+  const rawBudget = teamValue + teamBank
+  const budget     = rawBudget > 0 ? rawBudget : 1000
   const chipSquad  = buildChipSquad(state, budget, mode)
   const totalCost  = chipSquad.reduce((s, p) => s + p.now_cost, 0)
   const remaining  = budget - totalCost
