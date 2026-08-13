@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { AppState, SquadPlayer } from '@/lib/types'
 import {
   buildChipSquad,
@@ -31,6 +31,89 @@ const POSITIONS = [
 ]
 
 const PRE_SEASON_BUDGET = 1000 // £100m standard starting budget
+
+const POSITION_TARGETS: Record<number, number> = { 1: 2, 2: 5, 3: 5, 4: 3 }
+
+const STORAGE_KEY = 'fpl-manual-squad'
+
+type SavedManualSquad = {
+  teamId: number
+  mode: 'wildcard' | 'freehit'
+  playerIds: number[]
+}
+
+function readStoredSquad(): SavedManualSquad | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return null
+    const obj = parsed as Record<string, unknown>
+    if (
+      typeof obj.teamId !== 'number' ||
+      (obj.mode !== 'freehit' && obj.mode !== 'wildcard') ||
+      !Array.isArray(obj.playerIds) ||
+      !obj.playerIds.every((id) => typeof id === 'number')
+    ) {
+      return null
+    }
+    return {
+      teamId: obj.teamId,
+      mode: obj.mode as 'wildcard' | 'freehit',
+      playerIds: obj.playerIds as number[],
+    }
+  } catch {
+    return null
+  }
+}
+
+function squadIsValid(squad: SquadPlayer[], budget: number): boolean {
+  if (squad.length !== 15) return false
+  const ids = new Set<number>()
+  const counts: Record<number, number> = {}
+  const clubs: Record<number, number> = {}
+  let spent = 0
+  for (const p of squad) {
+    if (ids.has(p.id)) return false
+    ids.add(p.id)
+    counts[p.element_type] = (counts[p.element_type] ?? 0) + 1
+    clubs[p.team] = (clubs[p.team] ?? 0) + 1
+    if (clubs[p.team] > 3) return false
+    spent += p.now_cost
+  }
+  if (spent > budget) return false
+  for (const type of [1, 2, 3, 4]) {
+    if ((counts[type] ?? 0) !== POSITION_TARGETS[type]) return false
+  }
+  return true
+}
+
+function swapPlayer(
+  squad: SquadPlayer[],
+  candidate: SquadPlayer,
+  scorePlayer: (p: SquadPlayer) => number,
+  budget: number
+): SquadPlayer[] {
+  if (squad.some((p) => p.id === candidate.id)) return squad
+
+  const pos = candidate.element_type
+  const target = POSITION_TARGETS[pos] ?? 0
+  const samePos = squad.filter((p) => p.element_type === pos)
+
+  if (samePos.length < target) {
+    const trial = [...squad, candidate]
+    return squadIsValid(trial, budget) ? trial : squad
+  }
+
+  const ranked = [...samePos].sort((a, b) => scorePlayer(a) - scorePlayer(b))
+  for (const out of ranked) {
+    const trial = squad.map((p) => (p.id === out.id ? candidate : p))
+    if (squadIsValid(trial, budget)) return trial
+  }
+
+  return squad
+}
 
 // ── Shirt SVG ───────────────────────────────────────────────
 function MiniShirt({ primary, secondary }: { primary: string; secondary: string }) {
@@ -112,28 +195,93 @@ function MiniPitch() {
 
 // ── Main ────────────────────────────────────────────────────
 export default function PreSeasonBuilder({ state }: Props) {
-  const [mode, setMode]       = useState<'wildcard' | 'freehit'>('freehit')
-  const [openPos, setOpenPos] = useState<number | null>(2) // DEF open by default
-
+  const allPlayers = useMemo(() => enrichAllPlayers(state), [state])
   const budget     = PRE_SEASON_BUDGET
-  const chipSquad  = buildChipSquad(state, budget, mode)
-  const totalCost  = chipSquad.reduce((s, p) => s + p.now_cost, 0)
+  const teamId     = state.teamInfo?.id ?? 0
+
+  const [mode, setMode] = useState<'wildcard' | 'freehit'>(() => {
+    const saved = readStoredSquad()
+    return saved && saved.teamId === teamId ? saved.mode : 'freehit'
+  })
+
+  const [manualSquad, setManualSquad] = useState<SquadPlayer[] | null>(() => {
+    const saved = readStoredSquad()
+    if (!saved || saved.teamId !== teamId) return null
+    const byId = new Map(allPlayers.map((p) => [p.id, p]))
+    const players: SquadPlayer[] = []
+    for (const id of saved.playerIds) {
+      const p = byId.get(id)
+      if (!p) return null
+      players.push(p)
+    }
+    return squadIsValid(players, budget) ? players : null
+  })
+
+  const [openPos, setOpenPos] = useState<number | null>(2) // DEF open by default
+  const [flashId, setFlashId] = useState<number | null>(null)
+  const lastTeamId = useRef(teamId)
+
+  const chipSquad = useMemo(() => buildChipSquad(state, budget, mode), [state, budget, mode])
+  const squad     = manualSquad ?? chipSquad
+  const isManual  = manualSquad !== null
+
+  const totalCost  = squad.reduce((s, p) => s + p.now_cost, 0)
   const remaining  = budget - totalCost
 
-  // Determine starting XI from chip squad
-  const starting  = recommendStartingXI(chipSquad)
+  // Determine starting XI from the current squad
+  const starting  = recommendStartingXI(squad)
   const startIds  = new Set(starting.map((p) => p.id))
   const bench     = [
-    ...chipSquad.filter((p) => !startIds.has(p.id) && p.element_type === 1),
-    ...chipSquad.filter((p) => !startIds.has(p.id) && p.element_type !== 1),
+    ...squad.filter((p) => !startIds.has(p.id) && p.element_type === 1),
+    ...squad.filter((p) => !startIds.has(p.id) && p.element_type !== 1),
   ]
   const xiCost    = starting.reduce((s, p) => s + p.now_cost, 0)
   const benchCost = totalCost - xiCost
 
-  // All players enriched for pool view
-  const allPlayers = enrichAllPlayers(state)
   const scorePlayer = (p: SquadPlayer) =>
     mode === 'freehit' ? playerGWScore(p) : playerPowerRating(p)
+
+  useEffect(() => {
+    if (lastTeamId.current !== teamId) {
+      lastTeamId.current = teamId
+      setManualSquad(null)
+      return
+    }
+  }, [teamId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (manualSquad === null) {
+      window.localStorage.removeItem(STORAGE_KEY)
+      return
+    }
+    const data: SavedManualSquad = {
+      teamId,
+      mode,
+      playerIds: manualSquad.map((p) => p.id),
+    }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  }, [manualSquad, mode, teamId])
+
+  const handlePlayerClick = (p: SquadPlayer) => {
+    const next = swapPlayer(squad, p, scorePlayer, budget)
+    if (next === squad) return
+    const removed = squad.find((sp) => !next.some((np) => np.id === sp.id))
+    setManualSquad(next)
+    if (removed) {
+      setFlashId(removed.id)
+      window.setTimeout(() => setFlashId(null), 1200)
+    }
+  }
+
+  const changeMode = (m: 'wildcard' | 'freehit') => {
+    setMode(m)
+    setManualSquad(null)
+  }
+
+  const resetToAuto = () => {
+    setManualSquad(null)
+  }
 
   // Pitch positions
   const formationStr = detectFormation(starting)
@@ -179,7 +327,7 @@ export default function PreSeasonBuilder({ state }: Props) {
           {(['freehit', 'wildcard'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => setMode(m)}
+              onClick={() => changeMode(m)}
               className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 mode === m ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
               }`}
@@ -230,7 +378,7 @@ export default function PreSeasonBuilder({ state }: Props) {
 
           {/* ── Recommended Squad Strength ── */}
           {(() => {
-            const { xiPower: xp, xiGWScore: gw } = squadPowerStats(chipSquad)
+            const { xiPower: xp, xiGWScore: gw } = squadPowerStats(squad)
             const delta = gw - xp
             function scoreColor(v: number) {
               if (v >= 70) return { text: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
@@ -280,7 +428,7 @@ export default function PreSeasonBuilder({ state }: Props) {
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-                Recommended Starting XI · {formationStr}
+                {isManual ? 'Manual' : 'Recommended'} Starting XI · {formationStr}
               </p>
             </div>
             <div
@@ -341,13 +489,30 @@ export default function PreSeasonBuilder({ state }: Props) {
 
           {/* ── Recommended squad (Starting XI + Bench) ── */}
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
-                Recommended Squad
-              </p>
-              <p className="text-[10px] text-gray-400">
-                Ranked by {mode === 'freehit' ? 'GW Score' : 'Power'}
-              </p>
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                  {isManual ? 'Manual Squad' : 'Recommended Squad'}
+                </p>
+                {isManual && (
+                  <span className="text-[8px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                    Manual
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-gray-400 hidden sm:inline">
+                  Ranked by {mode === 'freehit' ? 'GW Score' : 'Power'}
+                </p>
+                {isManual && (
+                  <button
+                    onClick={resetToAuto}
+                    className="text-[9px] font-bold text-gray-500 hover:text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 transition-colors cursor-pointer"
+                  >
+                    Reset to Auto
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="divide-y divide-gray-50">
@@ -408,7 +573,7 @@ export default function PreSeasonBuilder({ state }: Props) {
                         </div>
 
                         {players.map((p, i) => {
-                          const inSquad  = chipSquad.some((c) => c.id === p.id)
+                          const inSquad  = squad.some((c) => c.id === p.id)
                           const pFixes   = getNextGWFixtures(p)
                           const pGWType  = gwType(p)
                           const fixLabel = pFixes.length === 0
@@ -416,13 +581,15 @@ export default function PreSeasonBuilder({ state }: Props) {
                             : pFixes.map((f) => `${state.teamMap[f.opponent]?.short_name ?? '?'} ${f.is_home ? 'H' : 'A'}`).join('+')
                           const pwr = playerPowerRating(p)
                           const gw  = playerGWScore(p)
+                          const isFlash = flashId === p.id
 
                           return (
                             <div
                               key={p.id}
+                              onClick={inSquad ? undefined : () => handlePlayerClick(p)}
                               className={`grid grid-cols-[1.5rem_1fr_2.5rem_2.5rem_2.5rem_3.5rem_3rem] gap-1 items-center px-3 py-2 border-b border-gray-50 last:border-none ${
-                                inSquad ? 'bg-green-50' : 'hover:bg-gray-50/50'
-                              }`}
+                                inSquad ? 'bg-green-50' : 'group cursor-pointer hover:bg-blue-50/60 transition-colors'
+                              } ${isFlash ? 'animate-pulse ring-1 ring-amber-300' : ''}`}
                             >
                               <span className="text-[10px] text-gray-400">{i + 1}</span>
                               <div className="min-w-0">
@@ -454,6 +621,11 @@ export default function PreSeasonBuilder({ state }: Props) {
                                 {inSquad && (
                                   <span className="text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
                                     ✓ In
+                                  </span>
+                                )}
+                                {!inSquad && (
+                                  <span className="text-[9px] font-bold text-gray-400 group-hover:text-blue-600">
+                                    + Add
                                   </span>
                                 )}
                               </span>
