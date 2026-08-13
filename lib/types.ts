@@ -23,6 +23,12 @@ export interface FPLPlayer {
   saves: number
   goals_conceded: number
   bonus: number
+  goals_scored: number
+  assists: number
+  ict_index: number
+  influence: number
+  creativity: number
+  threat: number
 }
 
 export interface FPLTeam {
@@ -56,12 +62,14 @@ export interface FPLFixture {
   team_h_score: number | null
   team_a_score: number | null
   finished: boolean
+  kickoff_time: string | null
 }
 
 export interface FPLBootstrap {
   elements: FPLPlayer[]
   teams: FPLTeam[]
   events: FPLEvent[]
+  fixtures?: FPLFixture[]
 }
 
 export interface FPLEntry {
