@@ -19,7 +19,7 @@ Idea list dari Ekky, dicatat 2026-08-12 (pre-season, sebelum GW1). Belum ada pri
 **Verify:** `npx tsx scripts/compare-modes.ts` (overlap & korelasi; target: overlap < 80%, corr < 0.99)
 
 ## 3. XI picker manual builder
-**Status:** Open
+**Status:** In progress — delegated to Rey 2026-08-13 (branch `feat/manual-builder`)
 **Context:** Sekarang PreSeasonBuilder cuma auto-recommend (buildChipSquad) — user nggak bisa manual pilih pemain sendiri buat starting XI / bench.
 **Yang perlu dipikirin:**
 - UI: klik pemain dari pool → masuk squad (ganti salah satu posisi yang sama)
@@ -38,10 +38,13 @@ Idea list dari Ekky, dicatat 2026-08-12 (pre-season, sebelum GW1). Belum ada pri
 - Note: ini bisa jadi scope gede, mulai dari yang simpel (status injury dari FPL API) dulu
 
 ## 5. Better dFDR algorithm & approach
-**Status:** Open — perlu riset
+**Status:** DONE 2026-08-13 — dFDR v2 position-aware (commit `e9207cf`, verify: `scripts/verify-dfdr-v2.ts`)
 **Context:** Current dFDR di `lib/fpl.ts`: 60% rolling goals conceded (last 6 games) + 40% FPL team strength ratings. User mau di-improve.
-**Yang perlu dipikirin:**
-- Data tambahan yang bisa dipake: home/away split, attack strength lawan, xG (ada endpoint understat di repo? cek `/api/understat`), form terbaru
-- Approach: weighted blend yang lebih granular per position (GK/DEF lebih sensitif ke opponent attack, FWD ke opponent defense)
-- Validation: backtest ke data musim lalu, bandingin prediksi vs actual points
-- Jangan overfit — pre-season data terbatas, validasi pake historical seasons
+**Yang sudah diimplementasi:**
+- **Position-aware static component**: GK/DEF berat ke opponent ATTACK strength (w=0.65), FWD ke opponent DEFENCE (w=0.65), MID blend (0.5/0.5). Home/away split tetep (pake split lawan: away saat kita home).
+- **`fixtureDifficulty(f, positionType)` helper** di lib/fpl.ts: fallback chain `dDifficultyByPos → dDifficulty → difficulty`. Semua konsumen (playerGWScore, playerScore, calculateSquadRating, enrichAllPlayers, buildSquad) udah pake ini.
+- **`dDifficultyByPos` field** di UpcomingFixture, di-inject per fixture di buildAppState. `dDifficulty` = rata-rata 4 posisi (buat display).
+- Pre-season fallback intact: strength semua 0 → dDifficulty = difficulty.
+**Yang belum:**
+- **Understat DEAD** (2026-08): understat.com nggak ngembed `teamsData` lagi di HTML (cuma ads), endpoint `/api/understat` selalu return `{}`. `lib/dynamicFdr.ts` (computeDynamicFdr) = dead code. Kalau mau xG beneran, cari API lain (butuh key) atau backtest pas musim jalan.
+- **Backtest**: belum ada validasi historis — bisa dilakuin pas data musim ini numpuk (rolling conceded + strength beneran aktif).
