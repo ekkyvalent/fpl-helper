@@ -5,22 +5,18 @@ Idea list dari Ekky, dicatat 2026-08-12 (pre-season, sebelum GW1). Belum ada pri
 ---
 
 ## 1. Pitch shape & ratio — fix sesuai aslinya
-**Status:** Open
-**Context:** `components/PreSeasonBuilder.tsx` — `MiniPitch` SVG pakai `viewBox="0 0 300 430"` dengan `preserveAspectRatio="none"` di-stretch ke container `aspect-square` (1:1). Hasilnya lapangan kepanjangan/kelebarnya nggak proporsional vs lapangan FPL asli (yang portrait, rasio ~2:3).
-**Yang perlu dipikirin:**
-- Ganti container dari `aspect-square` → rasio yang lebih mirip pitch asli (misal `aspect-[2/3]` atau `aspect-[3/4]`)
-- Penyesuaian posisi shirts (`pitchPosition` di `lib/fpl.ts` pakai persen, harusnya tetap work kalau viewBox diubah konsisten)
-- Cek di mobile juga, jangan sampai pitch ke-kecil/ke-besar
-- Kalau ada referensi dimensi lapangan asli FPL (68m x 105m), pakai rasio itu
+**Status:** Done (2026-08-13)
+**Fix:** Container `aspect-square max-h-[400px]` → `aspect-[300/430] max-w-[320px] mx-auto`. Root cause: di desktop, kolom lebar ~550px + max-h 400px bikin pitch render 550×400 (ratio 1.375, landscape) padahal SVG didesain 300×430 (portrait, 0.698). Cap lebar (bukan tinggi) biar ratio selalu match viewBox di semua viewport. `pitchPosition` %-based jadi nggak perlu diubah. Verified: container 320×459 (ratio 0.698) di browser, shirts GK 86% / DEF 66% / MID 43% / FWD 18% rapi.
 
 ## 2. XI picker: GW score vs power rating — hasilnya mirip banget, intentional?
-**Status:** Open — perlu investigasi dulu
-**Context:** Di PreSeasonBuilder, toggle mode `freehit` (GW Score) vs `wildcard` (Power Rating). User notice kedua mode ngasih rekomendasi yang basically sama. Bisa jadi intentional (dua metric itu emang correlated), bisa jadi bug (mode switch nggak ngefek ke sorting/pemilihan).
-**Yang perlu dipikirin:**
-- Cek `buildChipSquad(state, 1000, mode)` di `lib/fpl.ts` — apakah `mode` bener-bener ngarah ke scoring function yang beda
-- Cek apakah `playerGWScore` dan `playerPowerRating` punya varians yang cukup buat bedain urutan
-- Kalau correlated, pertimbangkan: weights beda, atau fitur pembeda lain (form, fixtures, xG)
-- Reproduce: jalanin kedua mode, bandingin squad yang dihasilkan, hitung overlap
+**Status:** Done (2026-08-13) — bukan bug di mode switching, tapi dFDR kolaps di pre-season
+**Root cause:** FPL API pre-season ngasih `strength_defence_home/away = 0` untuk SEMUA tim. `computeDynamicFdrFromStrength` jadi fallback ke 0.5 (static) + 2.6 (rolling, karena belum ada pertandingan) = **2.76 untuk semua fixture**. Akibatnya `avgDFdr3` identik semua pemain → GW Score = Power × konstan → corr(power, GWScore) = 1.000, overlap 100%, top-10 identik.
+**Fix (lib/fpl.ts):**
+- `buildAppState`: deteksi `hasStrengthData` (ada tim dgn strength_defence > 0); kalau nggak ada, `dDifficulty = fix.difficulty` (static FDR per fixture yang vary 1-5)
+- `computeDynamicFdrFromStrength`: skip rolling component kalau `rollingConceded` kosong (pre-season/GW1)
+- Wildcard score: `power × (6-avgDFdr3)/5` (range 0.2-1.0, over-punish) → `power × (1 + (3-avgDFdr3)×0.06)` (±0.12, power dominan, fixture cuma tiebreaker)
+**Hasil:** corr 0.945, overlap 53%, dFDR range 2.3-4.0. Freehit pick GW1-fixture (Raya, Awoniyi, Cherki), wildcard pick run 3GW (Palmer, Tavernier, João Pedro). Formasi beda: 5-3-2 vs 5-2-2.
+**Verify:** `npx tsx scripts/compare-modes.ts` (overlap & korelasi; target: overlap < 80%, corr < 0.99)
 
 ## 3. XI picker manual builder
 **Status:** Open

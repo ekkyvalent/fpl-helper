@@ -152,6 +152,14 @@ function computeDynamicFdrFromStrength(
   const staticFdr  = 1 + 4 * staticNorm   // 1 (weak defence) → 5 (strong defence)
 
   // ── Component 2: Rolling conceded (60%) ──────────────────
+  // Skip rolling entirely when no games have been played (pre-season / GW1):
+  // every team would otherwise fall back to the same league-average constant,
+  // adding zero signal and diluting the static component.
+  const hasRolling = Object.keys(rollingConceded).length > 0
+  if (!hasRolling) {
+    return parseFloat(staticFdr.toFixed(2))
+  }
+
   const leagueAvgConceded = 1.2   // sensible Premier League fallback
   const avgConceded = rollingConceded[opponent.id] ?? leagueAvgConceded
 
@@ -197,12 +205,21 @@ export function buildAppState(
     ? { gw: deadlineEvent.id, time: deadlineEvent.deadline_time }
     : null
 
-  // Inject blended dDifficulty: 40% FPL strength + 60% rolling goals conceded
+  // Inject blended dDifficulty: 40% FPL strength + 60% rolling goals conceded.
+  // Pre-season quirk: the FPL API returns strength_defence_* = 0 for every team
+  // until the season preview is populated. Detect that degenerate case and fall
+  // back to the per-fixture static difficulty (team_h/team_a_difficulty) so the
+  // dFDR still differentiates teams instead of collapsing to one constant.
+  const hasStrengthData = allTeams.some(
+    (t) => (t.strength_defence_home ?? 0) > 0 || (t.strength_defence_away ?? 0) > 0
+  )
   for (const fixes of Object.values(fixtureMap)) {
     for (const fix of fixes) {
       const opp = teamMap[fix.opponent]
       if (opp) {
-        fix.dDifficulty = computeDynamicFdrFromStrength(opp, fix.is_home, allTeams, rollingConceded)
+        fix.dDifficulty = hasStrengthData
+          ? computeDynamicFdrFromStrength(opp, fix.is_home, allTeams, rollingConceded)
+          : fix.difficulty
       }
     }
   }
@@ -594,7 +611,10 @@ export function buildChipSquad(
   const scorePlayer = (p: SquadPlayer): number =>
     mode === 'freehit'
       ? playerGWScore(p)
-      : playerPowerRating(p) * ((6 - p.avgDFdr3) / 5)
+      // Wildcard = long-term chip: power dominates, fixture run is a tiebreaker.
+      // (6 - avgDFdr3)/5 would squash to 0.2-1.0 and over-punish good players
+      // with hard runs; ±0.12 keeps power primary while still rewarding easy runs.
+      : playerPowerRating(p) * (1 + (3 - (p.avgDFdr3 ?? 3)) * 0.06)
 
   const scored = all
     .map((p) => ({ p, score: scorePlayer(p) }))

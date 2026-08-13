@@ -284,7 +284,7 @@ export default function PreSeasonBuilder({ state }: Props) {
               </p>
             </div>
             <div
-              className="relative w-full aspect-square max-h-[400px] overflow-hidden shadow-lg"
+              className="relative w-full aspect-[300/430] max-w-[320px] mx-auto overflow-hidden shadow-lg"
             >
               <MiniPitch />
               {positioned.map((p) => {
