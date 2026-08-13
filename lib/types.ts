@@ -100,7 +100,8 @@ export interface UpcomingFixture {
   opponent: number
   is_home: boolean
   difficulty: number      // FPL static FDR
-  dDifficulty?: number   // dynamic FDR from Understat (1–5, float)
+  dDifficulty?: number    // dynamic FDR (1–5, float), position-averaged
+  dDifficultyByPos?: Record<number, number>  // dynamic FDR per element_type (1-4), position-aware
 }
 
 export interface SquadPlayer extends FPLPlayer {

@@ -33,6 +33,13 @@ export const fmt = (cost: number) => `£${(cost / 10).toFixed(1)}m`
 const avg = (nums: number[]) =>
   nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null
 
+/** Position-aware dynamic difficulty for a fixture (1–5).
+ *  Falls back: per-position dFDR → averaged dFDR → FPL static difficulty. */
+export function fixtureDifficulty(f: UpcomingFixture | undefined, positionType: number): number {
+  if (!f) return 4
+  return f.dDifficultyByPos?.[positionType] ?? f.dDifficulty ?? f.difficulty
+}
+
 export function buildFixtureMap(
   fixtures: FPLFixture[],
   activeGW?: number   // keep finished fixtures for this GW (current ongoing GW)
@@ -74,7 +81,7 @@ export function buildSquad(
       .slice(0, 5)
 
     const avgFdr3  = avg(fix.slice(0, 3).map((f) => f.difficulty)) ?? 5
-    const avgDFdr3 = avg(fix.slice(0, 3).map((f) => f.dDifficulty ?? f.difficulty)) ?? 5
+    const avgDFdr3 = avg(fix.slice(0, 3).map((f) => fixtureDifficulty(f, el.element_type))) ?? 5
 
     return {
       ...el,
@@ -124,32 +131,48 @@ export function buildRollingConcededMap(
 }
 
 /**
- * Compute blended dynamic FDR (1–5).
+ * Compute blended dynamic FDR (1–5), position-aware.
  *
- * 40% — FPL static strength ratings (slow-moving, season-long quality signal)
- * 60% — Rolling goals conceded last 6 games (recent form, captures slumps/streaks)
+ * Static (40%) — opponent strength split by the player's role:
+ *   - GK/DEF face the opponent's ATTACK (their goals-for threat kills clean sheets)
+ *   - FWD face the opponent's DEFENCE (hard to score against a strong back line)
+ *   - MID blend both
+ * Rolling (60%) — opponent's rolling goals conceded last 6 games.
  *
  * More goals conceded by opponent = easier fixture = lower dFDR.
- * Stronger static defence = harder fixture = higher dFDR.
+ * Stronger opponent side = harder fixture = higher dFDR.
  */
 function computeDynamicFdrFromStrength(
   opponent: FPLTeam,
   isHome: boolean,
   allTeams: FPLTeam[],
-  rollingConceded: Record<number, number>
+  rollingConceded: Record<number, number>,
+  positionType: number  // 1 GK, 2 DEF, 3 MID, 4 FWD
 ): number {
   // ── Component 1: Static strength (40%) ───────────────────
-  // Opponent plays away when I'm home → use their away defensive strength
-  const oppStr = isHome
-    ? opponent.strength_defence_away
-    : opponent.strength_defence_home
-  const allStr = allTeams.map((t) =>
+  // Opponent plays away when I'm home → use their away split.
+  const oppAttack  = isHome ? opponent.strength_attack_away  : opponent.strength_attack_home
+  const oppDefence = isHome ? opponent.strength_defence_away : opponent.strength_defence_home
+
+  const allAttack = allTeams.map((t) =>
+    isHome ? t.strength_attack_away : t.strength_attack_home
+  )
+  const allDefence = allTeams.map((t) =>
     isHome ? t.strength_defence_away : t.strength_defence_home
   )
-  const sMin = Math.min(...allStr)
-  const sMax = Math.max(...allStr)
-  const staticNorm = sMax === sMin ? 0.5 : (oppStr - sMin) / (sMax - sMin)
-  const staticFdr  = 1 + 4 * staticNorm   // 1 (weak defence) → 5 (strong defence)
+  const norm = (val: number, all: number[]) => {
+    const lo = Math.min(...all)
+    const hi = Math.max(...all)
+    return hi === lo ? 0.5 : (val - lo) / (hi - lo)
+  }
+  const attackFdr  = 1 + 4 * norm(oppAttack, allAttack)   // strong attack → hard for GK/DEF
+  const defenceFdr = 1 + 4 * norm(oppDefence, allDefence) // strong defence → hard for FWD
+
+  // Position weights: which side of the opponent does this role face?
+  const wA = positionType === 1 || positionType === 2 ? 0.65
+           : positionType === 4 ? 0.35
+           : 0.5
+  const staticFdr = wA * attackFdr + (1 - wA) * defenceFdr
 
   // ── Component 2: Rolling conceded (60%) ──────────────────
   // Skip rolling entirely when no games have been played (pre-season / GW1):
@@ -217,9 +240,17 @@ export function buildAppState(
     for (const fix of fixes) {
       const opp = teamMap[fix.opponent]
       if (opp) {
-        fix.dDifficulty = hasStrengthData
-          ? computeDynamicFdrFromStrength(opp, fix.is_home, allTeams, rollingConceded)
-          : fix.difficulty
+        if (!hasStrengthData) {
+          // Pre-season: strength ratings are all 0 → use per-fixture static FDR
+          fix.dDifficulty = fix.difficulty
+        } else {
+          const byPos: Record<number, number> = {}
+          for (const pos of [1, 2, 3, 4]) {
+            byPos[pos] = computeDynamicFdrFromStrength(opp, fix.is_home, allTeams, rollingConceded, pos)
+          }
+          fix.dDifficultyByPos = byPos
+          fix.dDifficulty = (byPos[1] + byPos[2] + byPos[3] + byPos[4]) / 4
+        }
       }
     }
   }
@@ -295,9 +326,9 @@ export function calculateSquadRating(state: AppState): {
   const avgForm = starting.reduce((s, p) => s + parseFloat(p.form || '0'), 0) / 11
   const formScore = Math.min((avgForm / 8) * 40, 40)
 
-  // Fixtures (0–35): use dFDR if available, else static FDR
+  // Fixtures (0–35): use position-aware dFDR if available, else static FDR
   const avgFdr = starting.reduce(
-    (s, p) => s + (p.fixtures[0]?.dDifficulty ?? p.fixtures[0]?.difficulty ?? 4), 0
+    (s, p) => s + fixtureDifficulty(p.fixtures[0], p.element_type), 0
   ) / 11
   const fixtureScore = Math.max(0, ((5 - avgFdr) / 4) * 35)
 
@@ -340,7 +371,7 @@ export function playerScore(p: SquadPlayer): number {
   if (nextFixes.length === 0) {
     fixtureEase = 0.08   // BGW: nearly impossible to score
   } else {
-    const eases = nextFixes.map((f) => (6 - (f.dDifficulty ?? f.difficulty)) / 5)
+    const eases = nextFixes.map((f) => (6 - fixtureDifficulty(f, p.element_type)) / 5)
     fixtureEase = eases.length === 1
       ? eases[0]
       : eases.sort((a, b) => b - a)[0] + eases.sort((a, b) => b - a)[1] * 0.85  // DGW
@@ -521,7 +552,7 @@ export function playerGWScore(p: SquadPlayer): number {
 
   // Multiplier per fixture: dFDR 1 = ×1.25, dFDR 3 = ×1.0, dFDR 5 = ×0.75
   const mults = nextFixes.map((f) => {
-    const dFdr = f.dDifficulty ?? f.difficulty
+    const dFdr = fixtureDifficulty(f, p.element_type)
     return 0.75 + ((5 - dFdr) / 4) * 0.5
   })
 
@@ -577,7 +608,7 @@ export function enrichAllPlayers(state: AppState): SquadPlayer[] {
         .filter((f) => nextGWs.includes(f.gw))
         .slice(0, 5)
       const avgFdr3  = fix.slice(0, 3).reduce((s, f) => s + f.difficulty, 0) / Math.max(fix.slice(0, 3).length, 1) || 5
-      const avgDFdr3 = fix.slice(0, 3).reduce((s, f) => s + (f.dDifficulty ?? f.difficulty), 0) / Math.max(fix.slice(0, 3).length, 1) || 5
+      const avgDFdr3 = fix.slice(0, 3).reduce((s, f) => s + fixtureDifficulty(f, el.element_type), 0) / Math.max(fix.slice(0, 3).length, 1) || 5
       return {
         ...el,
         pick:      { element: el.id, position: 0, is_captain: false, is_vice_captain: false, multiplier: 1 },
