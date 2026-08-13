@@ -19,14 +19,13 @@ Idea list dari Ekky, dicatat 2026-08-12 (pre-season, sebelum GW1). Belum ada pri
 **Verify:** `npx tsx scripts/compare-modes.ts` (overlap & korelasi; target: overlap < 80%, corr < 0.99)
 
 ## 3. XI picker manual builder
-**Status:** In progress — delegated to Rey 2026-08-13 (branch `feat/manual-builder`)
+**Status:** DONE 2026-08-13 (merge `1738d7d`) — manual XI builder di PreSeasonBuilder
 **Context:** Sekarang PreSeasonBuilder cuma auto-recommend (buildChipSquad) — user nggak bisa manual pilih pemain sendiri buat starting XI / bench.
-**Yang perlu dipikirin:**
-- UI: klik pemain dari pool → masuk squad (ganti salah satu posisi yang sama)
-- Constraint: tetap enforce budget £100m, posisi (2 GK / 5 DEF / 5 MID / 3 FWD), max 3 per club
-- Start dari rekomendasi auto, terus user bisa tweak
-- Simpan state di localStorage kayak team ID biar persist antar session
-- Reuse `SquadRow`, `MiniShirt`, `MiniPitch` yang udah ada
+**Yang sudah diimplementasi:**
+- Klik pemain di Player Pool → swap pemain terlemah di posisi yang sama (score sesuai mode aktif: GW Score / Power Rating), enforce budget £100m, posisi {2,5,5,3}, max 3/club, no dupes
+- Persist di localStorage (`fpl-manual-squad`, keyed by teamId + mode) — reload aman, ganti team/mode auto-reset
+- UI: badge "Manual", "Reset to Auto" button, flash animation pemain yang ke-swap out, label "Manual Starting XI"
+- Auto squad tetap jadi fallback (`manualSquad ?? chipSquad`)
 
 ## 4. News segment — berita tim & pemain di squad kita
 **Status:** Open
