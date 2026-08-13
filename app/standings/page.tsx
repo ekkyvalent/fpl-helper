@@ -10,7 +10,8 @@ export default function StandingsPage() {
 
   const table = computePLTable(state)
 
-  if (table.length === 0) {
+  // Pre-season: computePLTable always returns 20 zero-rows — treat as empty
+  if (table.length === 0 || table.every((r) => r.played === 0)) {
     return (
       <div className="p-4 sm:p-5">
         <div className="bg-white border border-gray-100 rounded-2xl px-4 py-8 shadow-xs text-center">

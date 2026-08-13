@@ -95,11 +95,6 @@ export default function FixturesPage() {
                           <p className="text-[11px] text-gray-400 mt-0.5">{formatKickoff(f.kickoff_time)}</p>
                         )}
                       </div>
-                      {!f.finished && f.kickoff_time && (
-                        <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-md px-2 py-1 shrink-0">
-                          {formatKickoff(f.kickoff_time)}
-                        </span>
-                      )}
                     </div>
                   )
                 })}

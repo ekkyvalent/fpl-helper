@@ -10,7 +10,8 @@ import { posLabel } from '@/lib/fpl'
 function MiniPLTableCard({ state }: { state: ReturnType<typeof useApp>['state'] & {} }) {
   if (!state) return null
   const table = computePLTable(state)
-  if (table.length === 0) {
+  // Pre-season: computePLTable always returns 20 zero-rows — treat as empty
+  if (table.length === 0 || table.every((r) => r.played === 0)) {
     return (
       <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
         <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400 mb-3">Premier League Table</p>

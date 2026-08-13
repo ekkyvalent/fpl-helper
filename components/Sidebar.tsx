@@ -44,7 +44,9 @@ function TeamSummaryCard() {
         </div>
         <div>
           <p className="text-[9px] text-green-600/70 uppercase font-bold">Value</p>
-          <p className="text-[11px] font-extrabold text-green-800">{fmt(teamInfo.last_deadline_value)}</p>
+          <p className="text-[11px] font-extrabold text-green-800">
+            {teamInfo.last_deadline_value ? fmt(teamInfo.last_deadline_value) : '—'}
+          </p>
         </div>
       </div>
     </div>
