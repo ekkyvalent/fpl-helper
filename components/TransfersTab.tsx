@@ -1,5 +1,5 @@
 import type { AppState, SquadPlayer, FPLPlayer } from '@/lib/types'
-import { posLabel, fmt } from '@/lib/fpl'
+import { posLabel, fmt, fixtureDifficulty } from '@/lib/fpl'
 
 interface Props {
   state: AppState
@@ -52,7 +52,7 @@ function getReplacements(p: SquadPlayer, state: AppState): Replacement[] {
         .slice(0, 3)
       const avgFdr3  = fix.length ? fix.reduce((s, f) => s + f.difficulty, 0) / fix.length : 5
       const avgDFdr3 = fix.length
-        ? fix.reduce((s, f) => s + (f.dDifficulty ?? f.difficulty), 0) / fix.length
+        ? fix.reduce((s, f) => s + fixtureDifficulty(f, el.element_type), 0) / fix.length
         : 5
       return { ...el, avgFdr3, avgDFdr3, teamShort: state.teamMap[el.team]?.short_name ?? '?' }
     })
