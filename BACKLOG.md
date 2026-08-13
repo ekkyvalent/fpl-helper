@@ -28,13 +28,20 @@ Idea list dari Ekky, dicatat 2026-08-12 (pre-season, sebelum GW1). Belum ada pri
 - Auto squad tetap jadi fallback (`manualSquad ?? chipSquad`)
 
 ## 4. News segment — berita tim & pemain di squad kita
-**Status:** Open
+**Status:** Partially done (2026-08-13) — injury report live di Dashboard, external news feed placeholder
 **Context:** Mau ada section berita mingguan yang relevan sama tim kita (injury, rotation risk, transfer news, dll) buat pemain yang ada di starting XI/bench.
-**Yang perlu dipikirin:**
-- Sumber data: FPL API punya injury news (element.status, news, news_added), tapi buat berita eksternal perlu scraping/RSS (BBC Sport, Sky, dll) atau API pihak ketiga
-- Filter: ambil pemain dari chipSquad → cari berita per pemain + per club
-- UI: section baru di PreSeasonBuilder (kolom kanan?) atau halaman sendiri
-- Note: ini bisa jadi scope gede, mulai dari yang simpel (status injury dari FPL API) dulu
+**Yang sudah diimplementasi:**
+- **Injury report** di Dashboard: filter bootstrap elements (news non-empty OR chance_of_playing_next_round < 75), grouped per club, badge chance %
+- `/news` route = placeholder "coming soon"
+**Yang belum:**
+- Sumber data eksternal (BBC RSS / scraping / keyed API) — keputusan masih pending
+- Filter berita per pemain dari squad kita
+
+## 6. Sidebar navigation + multi-route restructure
+**Status:** DONE 2026-08-13 (merge `e292bb2`) — satu run Rey (branch feat/sidebar-nav) + 3 fix operator
+**Scope:** 10 routes (Dashboard, My Team, Standings, Players, Fixtures, News, Leagues, History, Watchlist, Settings), AppProvider context (data loading, chipPreview, watchlist, leagues), Sidebar desktop + MobileNav bottom scroll, PreSeasonBuilder full-width di /team pas pre-season.
+**Operator fixes setelah review:** (1) standings empty state — computePLTable selalu return 20 row, cek jadi `table.every(r => r.played === 0)`; (2) sidebar VALUE — `fmt(null)` render "£0.0m", guard jadi '—'; (3) fixtures kickoff dobel — hapus badge kanan.
+**Catatan:** News feed external masih pending (item #4). Leagues API verified via proxy: `leagues-classic/{id}/standings/` + `leagues-h2h/{id}/standings/` (standings.results kosong pre-season — normal FPL behavior).
 
 ## 5. Better dFDR algorithm & approach
 **Status:** DONE 2026-08-13 — dFDR v2 position-aware (commit `e9207cf`, verify: `scripts/verify-dfdr-v2.ts`)
