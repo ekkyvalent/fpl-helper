@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/players', label: 'Players', icon: '👤' },
   { href: '/fixtures', label: 'Fixtures', icon: '📅' },
   { href: '/news', label: 'News', icon: '📰' },
+  { href: '/injuries', label: 'Injuries', icon: '🩹' },
   { href: '/leagues', label: 'Leagues', icon: '👥' },
   { href: '/history', label: 'History', icon: '📈' },
   { href: '/watchlist', label: 'Watchlist', icon: '⭐' },
