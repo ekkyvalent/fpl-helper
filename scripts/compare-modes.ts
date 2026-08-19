@@ -1,7 +1,7 @@
 // Investigate: why do freehit (GW Score) and wildcard (Power Rating) modes produce nearly identical squads?
 // Evidence-based: overlap %, score distributions, top-10 by each metric.
 import { buildAppState, buildChipSquad, enrichAllPlayers, playerPowerRating, playerGWScore } from '../lib/fpl'
-import type { AppState, SquadPlayer } from '../lib/types'
+import type { AppState, SquadPlayer, FPLEvent } from '../lib/types'
 
 const ENTRY = 2002438
 
@@ -12,8 +12,8 @@ async function main() {
     fetch('https://fantasy.premierleague.com/api/fixtures/').then((r) => r.json()),
   ])
 
-  const nextEv = bootstrap.events.find((e: any) => e.is_next)
-  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: any) => e.is_current)?.id ?? 1)
+  const nextEv = bootstrap.events.find((e: FPLEvent) => e.is_next)
+  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: FPLEvent) => e.is_current)?.id ?? 1)
   const state: AppState = buildAppState(bootstrap, teamInfo, null, fixtures, currentGW)
 
   const all = enrichAllPlayers(state)

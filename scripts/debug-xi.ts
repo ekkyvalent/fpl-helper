@@ -1,6 +1,6 @@
 // Debug: what does recommendStartingXI actually return per position?
 import { buildAppState, buildChipSquad, recommendStartingXI } from '../lib/fpl'
-import type { AppState, SquadPlayer } from '../lib/types'
+import type { AppState, SquadPlayer, FPLEvent } from '../lib/types'
 
 async function main() {
   const [bootstrap, teamInfo, fixtures] = await Promise.all([
@@ -8,8 +8,8 @@ async function main() {
     fetch('https://fantasy.premierleague.com/api/entry/2002438/').then((r) => r.json()),
     fetch('https://fantasy.premierleague.com/api/fixtures/').then((r) => r.json()),
   ])
-  const nextEv = bootstrap.events.find((e: any) => e.is_next)
-  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: any) => e.is_current)?.id ?? 1)
+  const nextEv = bootstrap.events.find((e: FPLEvent) => e.is_next)
+  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: FPLEvent) => e.is_current)?.id ?? 1)
   const state: AppState = buildAppState(bootstrap, teamInfo, null, fixtures, currentGW)
 
   const posNames: Record<number, string> = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' }

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import type { AppState, SquadPlayer } from '@/lib/types'
+import type { AppState, FPLPicks, SquadPlayer } from '@/lib/types'
 import { buildAppState } from '@/lib/fpl'
 
 type Screen = 'input' | 'loading' | 'app'
@@ -50,27 +50,31 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [screen, setScreen] = useState<Screen>('input')
   const [loadMsg, setLoadMsg] = useState('')
   const [error, setError] = useState('')
-  const [savedId, setSavedId] = useState('')
+  const [savedId, setSavedId] = useState(() => (typeof window === 'undefined' ? '' : localStorage.getItem(TEAM_KEY) ?? ''))
   const [appState, setAppState] = useState<AppState | null>(null)
   const [chipPreview, setChipPreviewState] = useState<ChipPreview | null>(null)
-  const [watchlist, setWatchlist] = useState<number[]>([])
-  const [leagues, setLeagues] = useState<League[]>([])
+  const [watchlist, setWatchlist] = useState<number[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const stored = localStorage.getItem(WATCHLIST_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+  const [leagues, setLeagues] = useState<League[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const stored = localStorage.getItem(LEAGUES_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
 
   // Load persisted values on first mount
   useEffect(() => {
     const storedTeam = localStorage.getItem(TEAM_KEY) ?? ''
-    setSavedId(storedTeam)
-
-    try {
-      const storedWatch = localStorage.getItem(WATCHLIST_KEY)
-      if (storedWatch) setWatchlist(JSON.parse(storedWatch))
-    } catch {}
-
-    try {
-      const storedLeagues = localStorage.getItem(LEAGUES_KEY)
-      if (storedLeagues) setLeagues(JSON.parse(storedLeagues))
-    } catch {}
-
     if (storedTeam) {
       loadTeam(storedTeam)
     }
@@ -101,7 +105,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       const teamInfo = await fpl(`/entry/${teamId}`)
 
       setLoadMsg('Fetching squad picks…')
-      let picks: any = null
+      let picks: FPLPicks | null = null
       for (const gw of [currentGW, currentGW - 1, currentGW - 2]) {
         try {
           picks = await fpl(`/entry/${teamId}/event/${gw}/picks`)

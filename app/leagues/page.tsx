@@ -32,8 +32,6 @@ function LeagueCard({ leagueId, type }: { leagueId: string; type: 'classic' | 'h
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setErr('')
     const base = type === 'classic' ? 'leagues-classic' : 'leagues-h2h'
     fetch(`/api/fpl/${base}/${leagueId}/standings/`)
       .then(async (res) => {

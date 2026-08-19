@@ -7,7 +7,6 @@ export default function SettingsPage() {
   const { savedId, loadTeam, forgetTeam } = useApp()
   const [value, setValue] = useState(savedId)
   const [err, setErr] = useState('')
-  const [confirmMsg, setConfirmMsg] = useState('')
 
   function handleSave() {
     const id = parseInt(value)
@@ -93,7 +92,6 @@ export default function SettingsPage() {
             Reset manual squad
           </button>
         </div>
-        {confirmMsg && <p className="text-sm text-green-600 mt-2">{confirmMsg}</p>}
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">

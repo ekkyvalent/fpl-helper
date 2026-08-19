@@ -5,7 +5,7 @@
 //     - FWD harder vs strong-DEFENCE opponent
 //     - averaged dDifficulty sits between position extremes
 import { buildAppState, fixtureDifficulty } from '../lib/fpl'
-import type { AppState, FPLBootstrap, FPLTeam, UpcomingFixture } from '../lib/types'
+import type { AppState, FPLBootstrap, FPLTeam, FPLFixture, FPLEvent, FPLEntry, UpcomingFixture } from '../lib/types'
 
 const ENTRY = 2002438
 
@@ -36,8 +36,17 @@ function injectStrengths(b: FPLBootstrap): FPLBootstrap {
   return b
 }
 
-function stateFor(b: FPLBootstrap, fixtures: any[], currentGW: number): AppState {
-  const teamInfo: any = { id: ENTRY, name: 'Tester', player_first_name: 'T', player_last_name: 'T' }
+function stateFor(b: FPLBootstrap, fixtures: FPLFixture[], currentGW: number): AppState {
+  const teamInfo: FPLEntry = {
+    id: ENTRY,
+    name: 'Tester',
+    player_first_name: 'T',
+    player_last_name: 'T',
+    summary_overall_points: 0,
+    summary_overall_rank: 0,
+    last_deadline_value: 0,
+    last_deadline_bank: 0,
+  }
   return buildAppState(b, teamInfo, null, fixtures, currentGW)
 }
 
@@ -59,8 +68,8 @@ async function main() {
     fetch('https://fantasy.premierleague.com/api/bootstrap-static/').then((r) => r.json()),
     fetch('https://fantasy.premierleague.com/api/fixtures/').then((r) => r.json()),
   ])
-  const nextEv = bootstrapRaw.events.find((e: any) => e.is_next)
-  const currentGW = nextEv ? nextEv.id : (bootstrapRaw.events.find((e: any) => e.is_current)?.id ?? 1)
+  const nextEv = bootstrapRaw.events.find((e: FPLEvent) => e.is_next)
+  const currentGW = nextEv ? nextEv.id : (bootstrapRaw.events.find((e: FPLEvent) => e.is_current)?.id ?? 1)
 
   let failures = 0
   const check = (cond: boolean, label: string) => {

@@ -18,6 +18,29 @@ const POS_FILTERS = [
   { label: 'FWD', value: 4 },
 ]
 
+interface SortHeaderProps {
+  label: string
+  k: SortKey
+  align?: string
+  activeKey: SortKey
+  direction: 'asc' | 'desc'
+  onSort: (key: SortKey) => void
+}
+
+function SortHeader({ label, k, align = 'text-right', activeKey, direction, onSort }: SortHeaderProps) {
+  return (
+    <th className={`px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap ${align}`}>
+      <button
+        onClick={() => onSort(k)}
+        className="inline-flex items-center gap-1 cursor-pointer uppercase tracking-wider text-[11px] font-bold text-gray-400 hover:text-gray-700"
+      >
+        {label}
+        <span className="text-[9px]">{activeKey === k ? (direction === 'asc' ? '▲' : '▼') : ''}</span>
+      </button>
+    </th>
+  )
+}
+
 function valueFor(p: SquadPlayer, key: SortKey): string | number {
   switch (key) {
     case 'name': return p.web_name.toLowerCase()
@@ -84,20 +107,6 @@ export default function PlayersPage() {
     }
   }
 
-  function SortHeader({ label, k, align = 'text-right' }: { label: string; k: SortKey; align?: string }) {
-    return (
-      <th className={`px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap ${align}`}>
-        <button
-          onClick={() => handleSort(k)}
-          className="inline-flex items-center gap-1 cursor-pointer uppercase tracking-wider text-[11px] font-bold text-gray-400 hover:text-gray-700"
-        >
-          {label}
-          <span className="text-[9px]">{sortKey === k ? (sortDir === 'asc' ? '▲' : '▼') : ''}</span>
-        </button>
-      </th>
-    )
-  }
-
   if (!state) return null
 
   return (
@@ -131,23 +140,23 @@ export default function PlayersPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">Name</th>
-                <SortHeader label="Pos" k="pos" align="text-left" />
-                <SortHeader label="Team" k="team" align="text-left" />
-                <SortHeader label="Price" k="price" />
-                <SortHeader label="Total" k="total_points" />
-                <SortHeader label="Form" k="form" />
-                <SortHeader label="Goals" k="goals" />
-                <SortHeader label="Assists" k="assists" />
-                <SortHeader label="CS" k="cs" />
-                <SortHeader label="xG/90" k="xg90" />
-                <SortHeader label="xA/90" k="xa90" />
-                <SortHeader label="PPG" k="ppg" />
-                <SortHeader label="PPM" k="ppm" />
-                <SortHeader label="ICT" k="ict" />
-                <SortHeader label="Sel%" k="sel" />
-                <SortHeader label="PWR" k="pwr" align="text-center" />
-                <SortHeader label="GW" k="gw" align="text-center" />
-                <SortHeader label="FDR" k="fdr" align="text-center" />
+                <SortHeader label="Pos" k="pos" align="text-left" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Team" k="team" align="text-left" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Price" k="price" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Total" k="total_points" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Form" k="form" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Goals" k="goals" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Assists" k="assists" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="CS" k="cs" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="xG/90" k="xg90" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="xA/90" k="xa90" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="PPG" k="ppg" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="PPM" k="ppm" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="ICT" k="ict" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="Sel%" k="sel" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="PWR" k="pwr" align="text-center" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="GW" k="gw" align="text-center" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+                <SortHeader label="FDR" k="fdr" align="text-center" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
                 <th className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">Track</th>
               </tr>
             </thead>
