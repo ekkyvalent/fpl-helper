@@ -1,16 +1,28 @@
 'use client'
 
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/components/AppProvider'
 import SummaryBar from '@/components/SummaryBar'
 import SquadRatingCard from '@/components/SquadRatingCard'
 import { computePLTable } from '@/components/standings'
-import { posLabel } from '@/lib/fpl'
+import { enrichAllPlayers, fmt, posLabel, powerColor, playerPowerRating } from '@/lib/fpl'
+import type { AppState, FPLFixture } from '@/lib/types'
 
-function MiniPLTableCard({ state }: { state: ReturnType<typeof useApp>['state'] & {} }) {
-  if (!state) return null
+function CardHeader({ title, href, linkLabel = 'More' }: { title: string; href: string; linkLabel?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">{title}</p>
+      <Link href={href} className="text-[11px] font-semibold text-green-600 hover:text-green-700 no-underline">
+        {linkLabel} →
+      </Link>
+    </div>
+  )
+}
+
+function MiniPLTableCard({ state }: { state: AppState }) {
   const table = computePLTable(state)
-  // Pre-season: computePLTable always returns 20 zero-rows — treat as empty
+  // Pre-season: computePLTable returns all-zero rows, so treat as empty
   if (table.length === 0 || table.every((r) => r.played === 0)) {
     return (
       <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
@@ -20,15 +32,10 @@ function MiniPLTableCard({ state }: { state: ReturnType<typeof useApp>['state'] 
     )
   }
 
-  const top5 = table.slice(0, 5)
+  const top10 = table.slice(0, 10)
   return (
     <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Premier League Table</p>
-        <Link href="/standings" className="text-[11px] font-semibold text-green-600 hover:text-green-700 no-underline">
-          Full table →
-        </Link>
-      </div>
+      <CardHeader title="Premier League Table" href="/standings" linkLabel="Full table" />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -44,7 +51,7 @@ function MiniPLTableCard({ state }: { state: ReturnType<typeof useApp>['state'] 
             </tr>
           </thead>
           <tbody>
-            {top5.map((row, i) => (
+            {top10.map((row, i) => (
               <tr key={row.team.id} className="border-b border-gray-50 last:border-none">
                 <td className="py-2 pr-2 text-xs font-bold text-gray-400">{i + 1}</td>
                 <td className="py-2 pr-2 font-semibold text-gray-900 text-[13px]">{row.team.short_name}</td>
@@ -63,8 +70,130 @@ function MiniPLTableCard({ state }: { state: ReturnType<typeof useApp>['state'] 
   )
 }
 
-function InjuryReportCard({ state }: { state: ReturnType<typeof useApp>['state'] & {} }) {
-  if (!state) return null
+function TopPlayersCard({ state }: { state: AppState }) {
+  const players = useMemo(() => {
+    return enrichAllPlayers(state)
+      .map((p) => ({ player: p, power: playerPowerRating(p) }))
+      .sort((a, b) => b.power - a.power)
+      .slice(0, 10)
+  }, [state])
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
+      <CardHeader title="Top Players" href="/players" />
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">No player data yet.</p>
+      ) : (
+        <div className="flex flex-col">
+          {players.map(({ player, power }, i) => (
+            <div key={player.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-none">
+              <span className="w-5 text-[11px] font-bold text-gray-400 shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-gray-900 truncate">{player.web_name}</p>
+                <p className="text-[11px] text-gray-400">
+                  {player.teamShort} / {posLabel(player.element_type)}
+                </p>
+              </div>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(power)}`}>
+                {power}
+              </span>
+              <span className="text-[11px] font-semibold text-gray-600 shrink-0">{fmt(player.now_cost)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function UpcomingFixturesCard({ state }: { state: AppState }) {
+  const { fixtures, dgwByEvent } = useMemo(() => {
+    const all = state.bootstrap.fixtures ?? []
+
+    // DGW detection per event, using the full season fixture list
+    const teamCounts = new Map<number, Map<number, number>>()
+    for (const f of all) {
+      const gw = f.event
+      if (gw == null) continue
+      let counts = teamCounts.get(gw)
+      if (!counts) {
+        counts = new Map()
+        teamCounts.set(gw, counts)
+      }
+      counts.set(f.team_h, (counts.get(f.team_h) ?? 0) + 1)
+      counts.set(f.team_a, (counts.get(f.team_a) ?? 0) + 1)
+    }
+    const dgw = new Map<number, Set<number>>()
+    for (const [gw, counts] of teamCounts) {
+      const teams = new Set<number>()
+      for (const [team, count] of counts) {
+        if (count >= 2) teams.add(team)
+      }
+      dgw.set(gw, teams)
+    }
+
+    const upcoming = all
+      .filter((f): f is FPLFixture & { event: number } => f.event != null && f.event >= state.currentGW)
+      .sort((a, b) => (a.kickoff_time ?? '').localeCompare(b.kickoff_time ?? ''))
+      .slice(0, 10)
+
+    return { fixtures: upcoming, dgwByEvent: dgw }
+  }, [state])
+
+  function formatKickoff(time: string | null) {
+    if (!time) return 'TBD'
+    const d = new Date(time)
+    return d.toLocaleString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
+      <CardHeader title="Upcoming Fixtures" href="/fixtures" />
+      {fixtures.length === 0 ? (
+        <p className="text-sm text-gray-500">No upcoming fixtures found.</p>
+      ) : (
+        <div className="flex flex-col">
+          {fixtures.map((f) => {
+            const home = state.teamMap[f.team_h]?.short_name ?? '?'
+            const away = state.teamMap[f.team_a]?.short_name ?? '?'
+            const dgwTeams = dgwByEvent.get(f.event)
+            const isDGW = dgwTeams?.has(f.team_h) || dgwTeams?.has(f.team_a)
+            return (
+              <div key={f.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-none">
+                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 shrink-0 w-[52px] text-center">
+                  GW {f.event}
+                </span>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 text-[13px] font-bold text-gray-900">
+                  <span>{home}</span>
+                  <span className="text-gray-400 font-normal">vs</span>
+                  <span>{away}</span>
+                  {isDGW && (
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">
+                      DGW
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400 shrink-0">
+                  {f.finished && f.team_h_score != null && f.team_a_score != null
+                    ? `FT ${f.team_h_score}-${f.team_a_score}`
+                    : formatKickoff(f.kickoff_time)}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InjuryReportCard({ state }: { state: AppState }) {
   const injured = state.bootstrap.elements.filter(
     (p) =>
       (p.news && p.news.trim().length > 0) ||
@@ -128,7 +257,7 @@ function InjuryReportCard({ state }: { state: ReturnType<typeof useApp>['state']
 function NewsPlaceholderCard() {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
-      <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400 mb-3">News</p>
+      <CardHeader title="News" href="/news" linkLabel="More" />
       <p className="text-sm text-gray-500">News feed coming soon.</p>
     </div>
   )
@@ -156,6 +285,8 @@ export default function DashboardPage() {
       )}
 
       <MiniPLTableCard state={state} />
+      <TopPlayersCard state={state} />
+      <UpcomingFixturesCard state={state} />
       <InjuryReportCard state={state} />
       <NewsPlaceholderCard />
     </div>
