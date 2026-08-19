@@ -14,7 +14,6 @@ export interface PLTableRow {
 
 export function computePLTable(state: AppState): PLTableRow[] {
   const teams = state.bootstrap?.teams ?? []
-  const teamMap = Object.fromEntries(teams.map((t) => [t.id, t]))
   const rows = new Map<number, PLTableRow>()
 
   for (const team of teams) {

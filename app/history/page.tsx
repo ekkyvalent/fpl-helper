@@ -107,8 +107,6 @@ export default function HistoryPage() {
   useEffect(() => {
     if (!state) return
     let cancelled = false
-    setLoading(true)
-    setErr('')
     fetch(`/api/fpl/entry/${state.teamInfo.id}/history/`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useApp } from '@/components/AppProvider'
-import { enrichAllPlayers, playerPowerRating, posLabel, fmt, fdrColor, fixtureDifficulty } from '@/lib/fpl'
+import { enrichAllPlayers, playerPowerRating, posLabel, fmt, fdrColor } from '@/lib/fpl'
 
 export default function WatchlistPage() {
   const { state, watchlist, toggleWatch } = useApp()

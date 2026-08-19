@@ -50,7 +50,6 @@ export default function CaptainTab({ state }: Props) {
     const name = teamMap[f.opponent]?.short_name ?? '?'
     return `${name} (${f.is_home ? 'H' : 'A'})`
   }).join(' + ') || 'unknown'
-  const topHA  = topFixes[0]?.is_home ? 'at home' : 'away'
   const ownNote = top.ownership > 30
     ? `At ${top.ownership.toFixed(0)}% ownership, this is a popular and safe captain choice.`
     : `With only ${top.ownership.toFixed(0)}% ownership, this doubles as a differential play.`

@@ -61,7 +61,7 @@ export async function GET(
         'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl * 2}`,
       },
     })
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: 'Failed to reach FPL API' },
       { status: 503 }

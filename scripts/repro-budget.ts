@@ -1,6 +1,6 @@
 // Full repro: build AppState via buildAppState (same as app flow), then run chip squad + starting XI
-import { buildAppState, buildChipSquad, recommendStartingXI, detectFormation, squadPowerStats } from '../lib/fpl'
-import type { AppState } from '../lib/types'
+import { buildAppState, buildChipSquad, recommendStartingXI, detectFormation } from '../lib/fpl'
+import type { AppState, FPLEvent } from '../lib/types'
 
 const ENTRY = 2002438
 
@@ -13,8 +13,8 @@ async function main() {
   console.log('bootstrap:', bootstrap.elements.length, 'teams:', bootstrap.teams.length, 'fixtures:', fixtures.length)
 
   // same logic as page.tsx: currentGW from next event
-  const nextEv = bootstrap.events.find((e: any) => e.is_next)
-  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: any) => e.is_current)?.id ?? 1)
+  const nextEv = bootstrap.events.find((e: FPLEvent) => e.is_next)
+  const currentGW = nextEv ? nextEv.id : (bootstrap.events.find((e: FPLEvent) => e.is_current)?.id ?? 1)
   console.log('currentGW:', currentGW)
 
   const state: AppState = buildAppState(bootstrap, teamInfo, null, fixtures, currentGW)

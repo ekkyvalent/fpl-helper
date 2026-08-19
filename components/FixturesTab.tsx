@@ -1,5 +1,5 @@
 import type { AppState, UpcomingFixture } from '@/lib/types'
-import { posLabel, fdrColor, fmt, playerPowerRating, playerGWScore, powerColor, getNextGWFixtures, gwType } from '@/lib/fpl'
+import { posLabel, fdrColor, fmt, playerPowerRating, playerGWScore, powerColor, gwType } from '@/lib/fpl'
 
 interface Props {
   state: AppState

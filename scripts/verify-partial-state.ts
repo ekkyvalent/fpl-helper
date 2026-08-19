@@ -1,9 +1,10 @@
 // Verify partial-state crash fix: state without fixtureMap/teamMap/nextGWs
 import { buildChipSquad, enrichAllPlayers } from '../lib/fpl'
+import type { AppState } from '../lib/types'
 
 async function main() {
   const bootstrap = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/').then((r) => r.json())
-  const partial = { bootstrap, picks: null, entry: null } as any
+  const partial = { bootstrap, picks: null, entry: null } as unknown as AppState
 
   // 1. enrichAllPlayers with partial state
   try {
