@@ -7,7 +7,7 @@ import SummaryBar from '@/components/SummaryBar'
 import SquadRatingCard from '@/components/SquadRatingCard'
 import { computePLTable } from '@/components/standings'
 import { enrichAllPlayers, fmt, posLabel, powerColor, playerPowerRating } from '@/lib/fpl'
-import type { AppState, FPLFixture } from '@/lib/types'
+import type { AppState, FPLFixture, SquadPlayer } from '@/lib/types'
 
 function CardHeader({ title }: { title: string }) {
   return <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400 mb-3">{title}</p>
@@ -28,7 +28,7 @@ function MiniPLTableCard({ state }: { state: AppState }) {
   const table = computePLTable(state)
   const allZero = table.length > 0 && table.every((r) => r.played === 0)
   const rows = allZero
-    ? [...table].sort((a, b) => a.team.short_name.localeCompare(b.team.short_name))
+    ? [...table].sort((a, b) => a.team.short_name.localeCompare(b.team.short_name)).slice(0, 10)
     : table.slice(0, 10)
 
   return (
@@ -51,14 +51,14 @@ function MiniPLTableCard({ state }: { state: AppState }) {
           <tbody>
             {rows.map((row, i) => (
               <tr key={row.team.id} className="border-b border-gray-50 last:border-none">
-                <td className="py-2 pr-2 text-xs font-bold text-gray-400">{i + 1}</td>
-                <td className="py-2 pr-2 font-semibold text-gray-900 text-[13px]">{row.team.short_name}</td>
-                <td className="py-2 pr-2 text-center text-xs text-gray-500">{row.played}</td>
-                <td className="py-2 pr-2 text-center text-xs text-gray-500">{row.won}</td>
-                <td className="py-2 pr-2 text-center text-xs text-gray-500">{row.drawn}</td>
-                <td className="py-2 pr-2 text-center text-xs text-gray-500">{row.lost}</td>
-                <td className="py-2 pr-2 text-center text-xs font-semibold text-gray-700">{row.gd}</td>
-                <td className="py-2 text-center text-xs font-extrabold text-gray-900">{row.points}</td>
+                <td className="py-1.5 pr-2 text-xs font-bold text-gray-400">{i + 1}</td>
+                <td className="py-1.5 pr-2 font-semibold text-gray-900 text-[13px] leading-tight">{row.team.short_name}</td>
+                <td className="py-1.5 pr-2 text-center text-xs text-gray-500">{row.played}</td>
+                <td className="py-1.5 pr-2 text-center text-xs text-gray-500">{row.won}</td>
+                <td className="py-1.5 pr-2 text-center text-xs text-gray-500">{row.drawn}</td>
+                <td className="py-1.5 pr-2 text-center text-xs text-gray-500">{row.lost}</td>
+                <td className="py-1.5 pr-2 text-center text-xs font-semibold text-gray-700">{row.gd}</td>
+                <td className="py-1.5 text-center text-xs font-extrabold text-gray-900">{row.points}</td>
               </tr>
             ))}
           </tbody>
@@ -70,39 +70,78 @@ function MiniPLTableCard({ state }: { state: AppState }) {
   )
 }
 
-function TopPlayersCard({ state }: { state: AppState }) {
+type PlayerMetric = 'points' | 'power' | 'ppm'
+
+const METRIC_CONFIG: Record<
+  PlayerMetric,
+  { title: string; badge: (v: number) => string; display: (v: number) => string }
+> = {
+  points: {
+    title: 'Top Points',
+    badge: () => 'bg-indigo-100 text-indigo-800',
+    display: (v) => String(Math.round(v)),
+  },
+  power: {
+    title: 'Top Power (PWR)',
+    badge: (v) => powerColor(v),
+    display: (v) => String(v),
+  },
+  ppm: {
+    title: 'Top Value (PPM)',
+    badge: () => 'bg-cyan-100 text-cyan-800',
+    display: (v) => v.toFixed(1),
+  },
+}
+
+function PlayerListCard({ state, metric }: { state: AppState; metric: PlayerMetric }) {
+  const cfg = METRIC_CONFIG[metric]
   const players = useMemo(() => {
     return enrichAllPlayers(state)
-      .map((p) => ({ player: p, power: playerPowerRating(p) }))
-      .sort((a, b) => b.power - a.power)
+      .map((p) => {
+        const power = playerPowerRating(p)
+        const ppm = p.now_cost > 0 ? p.total_points / (p.now_cost / 10) : 0
+        const value = metric === 'points' ? p.total_points : metric === 'power' ? power : ppm
+        return { player: p, value }
+      })
+      .sort((a, b) => b.value - a.value)
       .slice(0, 10)
-  }, [state])
+  }, [state, metric])
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
-      <CardHeader title="Top Players" />
+      <CardHeader title={cfg.title} />
       {players.length === 0 ? (
         <p className="text-sm text-gray-500">No player data yet.</p>
       ) : (
         <div className="flex flex-col">
-          {players.map(({ player, power }, i) => (
-            <div key={player.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-none">
-              <span className="w-5 text-[11px] font-bold text-gray-400 shrink-0">{i + 1}</span>
+          {players.map(({ player, value }, i) => (
+            <div key={player.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-none">
+              <span className="w-4 text-[11px] font-bold text-gray-400 shrink-0 text-center">{i + 1}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-gray-900 truncate">{player.web_name}</p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">{player.web_name}</p>
+                <p className="text-[11px] text-gray-400 leading-tight">
                   {player.teamShort} / {posLabel(player.element_type)}
                 </p>
               </div>
-              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(power)}`}>
-                {power}
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 ${cfg.badge(value)}`}>
+                {cfg.display(value)}
               </span>
-              <span className="text-[11px] font-semibold text-gray-600 shrink-0">{fmt(player.now_cost)}</span>
+              <span className="text-[11px] font-semibold text-gray-600 shrink-0 w-12 text-right">{fmt(player.now_cost)}</span>
             </div>
           ))}
         </div>
       )}
       <CardFooter href="/players" label="View all players" />
+    </div>
+  )
+}
+
+function TopPlayersScouting({ state }: { state: AppState }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <PlayerListCard state={state} metric="points" />
+      <PlayerListCard state={state} metric="power" />
+      <PlayerListCard state={state} metric="ppm" />
     </div>
   )
 }
@@ -166,7 +205,7 @@ function UpcomingFixturesCard({ state }: { state: AppState }) {
             const dgwTeams = dgwByEvent.get(f.event)
             const isDGW = dgwTeams?.has(f.team_h) || dgwTeams?.has(f.team_a)
             return (
-              <div key={f.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-none">
+              <div key={f.id} className="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-none">
                 <span className="text-[10px] font-bold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 shrink-0 w-[52px] text-center">
                   GW {f.event}
                 </span>
@@ -191,6 +230,161 @@ function UpcomingFixturesCard({ state }: { state: AppState }) {
         </div>
       )}
       <CardFooter href="/fixtures" label="View all fixtures" />
+    </div>
+  )
+}
+
+function CaptainBenchStrip({ state }: { state: AppState }) {
+  const squad = state.squad
+  if (squad.length === 0) return null
+
+  const captain = squad.find((p) => p.pick.is_captain)
+  const vice = squad.find((p) => p.pick.is_vice_captain)
+  const benchPts = state.picks?.entry_history?.points_on_bench ?? 0
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-xs flex flex-wrap items-center gap-x-5 gap-y-2">
+      <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400 w-full sm:w-auto">This GW</p>
+      <div className="flex items-center gap-1.5 text-[13px]">
+        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-gray-900 text-white shrink-0">C</span>
+        <span className="font-bold text-gray-900">{captain?.web_name ?? '—'}</span>
+        <span className="text-gray-400">×{captain?.pick.multiplier ?? 1}</span>
+        {captain && <span className="text-gray-500">({captain.event_points} pts)</span>}
+      </div>
+      <div className="flex items-center gap-1.5 text-[13px]">
+        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-gray-300 text-gray-700 shrink-0">VC</span>
+        <span className="font-bold text-gray-900">{vice?.web_name ?? '—'}</span>
+      </div>
+      <div className="ml-auto text-[13px]">
+        <span className="text-gray-400">Points on bench:</span>{' '}
+        <span className="font-bold text-gray-900">{benchPts} pts</span>
+      </div>
+    </div>
+  )
+}
+
+const CHIP_META: Record<string, { label: string; total: number }> = {
+  wildcard: { label: 'Wildcard', total: 2 },
+  freehit: { label: 'Free Hit', total: 1 },
+  bboost: { label: 'Bench Boost', total: 1 },
+  '3xc': { label: 'Triple Captain', total: 1 },
+}
+
+function ChipsStatusCard({ state }: { state: AppState }) {
+  const used = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const c of state.teamInfo.chips ?? []) {
+      counts[c.name] = (counts[c.name] ?? 0) + 1
+    }
+    return counts
+  }, [state])
+
+  const chips = Object.entries(CHIP_META).map(([key, meta]) => {
+    const usedCount = used[key] ?? 0
+    return { key, label: meta.label, used: usedCount, remaining: meta.total - usedCount }
+  })
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
+      <CardHeader title="Chips Remaining" />
+      {chips.every((c) => c.remaining <= 0) ? (
+        <p className="text-sm text-gray-500">All chips used.</p>
+      ) : (
+        <div className="flex flex-col">
+          {chips.map((c) => (
+            <div key={c.key} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-none">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${c.remaining > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-[13px] font-semibold text-gray-900">{c.label}</span>
+              </div>
+              <span className={`text-[11px] font-bold ${c.remaining > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                {c.remaining > 0 ? `${c.remaining} left` : 'Used'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <CardFooter href="/team" label="Manage team" />
+    </div>
+  )
+}
+
+function MarketMovementCard({ state }: { state: AppState }) {
+  const { inTop, outTop } = useMemo(() => {
+    const all = enrichAllPlayers(state)
+    const inTop = [...all]
+      .sort((a, b) => (b.transfers_in_event ?? 0) - (a.transfers_in_event ?? 0))
+      .slice(0, 10)
+    const outTop = [...all]
+      .sort((a, b) => (b.transfers_out_event ?? 0) - (a.transfers_out_event ?? 0))
+      .slice(0, 10)
+    return { inTop, outTop }
+  }, [state])
+
+  const col = (label: string, cls: string, rows: SquadPlayer[], get: (p: SquadPlayer) => number, sign: string) => (
+    <div>
+      <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${cls}`}>{label}</p>
+      <div className="flex flex-col">
+        {rows.map((p, i) => (
+          <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-none">
+            <span className="w-4 text-[11px] font-bold text-gray-400 shrink-0 text-center">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">{p.web_name}</p>
+              <p className="text-[11px] text-gray-400 leading-tight">{p.teamShort} / {posLabel(p.element_type)}</p>
+            </div>
+            <span className={`text-[11px] font-bold shrink-0 ${cls}`}>{sign}{get(p).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
+      <CardHeader title="Market Movement" />
+      <div className="grid grid-cols-2 gap-4">
+        {col('Most Transferred In', 'text-green-600', inTop, (p) => p.transfers_in_event ?? 0, '+')}
+        {col('Most Transferred Out', 'text-red-500', outTop, (p) => p.transfers_out_event ?? 0, '-')}
+      </div>
+      <CardFooter href="/players" label="View all players" />
+    </div>
+  )
+}
+
+function DifferentialsCard({ state }: { state: AppState }) {
+  const players = useMemo(() => {
+    return enrichAllPlayers(state)
+      .map((p) => ({
+        player: p,
+        power: playerPowerRating(p),
+        ownership: parseFloat(p.selected_by_percent || '0'),
+      }))
+      .filter((x) => x.ownership > 0 && x.ownership < 5)
+      .sort((a, b) => b.power - a.power)
+      .slice(0, 10)
+  }, [state])
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-5 shadow-xs">
+      <CardHeader title="Differentials" />
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">No differentials found.</p>
+      ) : (
+        <div className="flex flex-col">
+          {players.map(({ player, power, ownership }, i) => (
+            <div key={player.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-none">
+              <span className="w-4 text-[11px] font-bold text-gray-400 shrink-0 text-center">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">{player.web_name}</p>
+                <p className="text-[11px] text-gray-400 leading-tight">{player.teamShort} / {posLabel(player.element_type)}</p>
+              </div>
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 ${powerColor(power)}`}>{power}</span>
+              <span className="text-[11px] font-semibold text-gray-500 shrink-0 w-12 text-right">{ownership.toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <CardFooter href="/players" label="View all players" />
     </div>
   )
 }
@@ -281,10 +475,19 @@ export default function DashboardPage() {
         </Link>
       )}
 
+      <CaptainBenchStrip state={state} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <MiniPLTableCard state={state} />
-        <TopPlayersCard state={state} />
         <UpcomingFixturesCard state={state} />
+        <ChipsStatusCard state={state} />
+      </div>
+
+      <TopPlayersScouting state={state} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MarketMovementCard state={state} />
+        <DifferentialsCard state={state} />
       </div>
 
       <InjuryReportCard state={state} />

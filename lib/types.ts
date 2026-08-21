@@ -29,6 +29,8 @@ export interface FPLPlayer {
   influence: number
   creativity: number
   threat: number
+  transfers_in_event: number
+  transfers_out_event: number
 }
 
 export interface FPLTeam {
@@ -81,6 +83,7 @@ export interface FPLEntry {
   summary_overall_rank: number
   last_deadline_value: number
   last_deadline_bank: number
+  chips?: { name: string; time: string; event: number | null }[]
 }
 
 export interface FPLPick {
@@ -100,6 +103,7 @@ export interface FPLPicks {
     event: number
     bank: number
     value: number
+    points_on_bench: number
   }
 }
 
